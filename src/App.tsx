@@ -244,12 +244,52 @@ export default function App() {
 
 {tab === 'nominate' && (
           <section className="grid lg:grid-cols-3 gap-6">
-            <form className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <form className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6" onSubmit={submitNomination}>
               <h2 className="text-lg font-semibold">Nominate a Speaker</h2>
               <p className="mt-1 text-sm text-slate-600">Anyone can nominate. Professional speakers must disclose EO rates.</p>
-              {/* This is the full nomination form, which was missing */}
+
+              <div className="my-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <h3 className="font-semibold text-slate-800">✨ AI Topic Suggester</h3>
+                <p className="mt-1 text-sm text-slate-600">Paste the speaker's bio or LinkedIn summary below to get AI-suggested topics.</p>
+                <textarea
+                  value={nominationBio}
+                  onChange={(e) => setNominationBio(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
+                  rows={4}
+                  placeholder="e.g., Jane Doe is an award-winning entrepreneur who..."
+                />
+                <button
+                  type="button"
+                  onClick={suggestTopics}
+                  disabled={topicSuggestion.loading}
+                  className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400"
+                >
+                  {topicSuggestion.loading ? "Suggesting..." : "✨ Suggest Topics"}
+                </button>
+                {topicSuggestion.error && <p className="mt-2 text-sm text-red-600">{topicSuggestion.error}</p>}
+              </div>
+
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {/* All the input fields for the form go here */}
+                <div><label className="text-xs font-semibold text-slate-600">Type</label><select name="type" value={nom.type} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
+                <div><label className="text-xs font-semibold text-slate-600">Fee</label><select name="fee" value={nom.fee} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
+                <div><label className="text-xs font-semibold text-slate-600">Full name</label><input name="name" required value={nom.name} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="text-xs font-semibold text-slate-600">Email</label><input name="email" required type="email" value={nom.email} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Chapter / Company (optional)</label><input name="chapter" value={nom.chapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input name="topics" value={nom.topics} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Formats (e.g., Talk, Workshop)</label><input name="formats" value={nom.formats} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+
+                {(nom.fee === FEE.PAID || nom.fee === FEE.PRO_PAID) && (
+                  <div className="md:col-span-2 rounded-xl border border-amber-300/80 bg-amber-50 p-4">
+                    <div className="text-sm font-semibold text-amber-900">EO Chapter Rate</div>
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-6 gap-3">
+                      <div><label className="text-xs font-semibold text-slate-600">Currency</label><select name="rateCurrency" value={nom.rateCurrency} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{["USD","AUD","SGD","NZD","PHP","IDR","INR","HKD", "JPY"].map(c=> <option key={c} value={c}>{c}</option>)}</select></div>
+                      <div><label className="text-xs font-semibold text-slate-600">Min</label><input name="rateMin" required value={nom.rateMin} onChange={e=>setNom({...nom, rateMin: e.target.value.replace(/[^0-9.]/g,'')})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" placeholder="e.g., 3000" /></div>
+                      <div><label className="text-xs font-semibold text-slate-600">Max (opt)</label><input name="rateMax" value={nom.rateMax} onChange={e=>setNom({...nom, rateMax: e.target.value.replace(/[^0-9.]/g,'')})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" placeholder="e.g., 6000" /></div>
+                      <div><label className="text-xs font-semibold text-slate-600">Unit</label><input name="rateUnit" value={nom.rateUnit} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" placeholder="per talk" /></div>
+                      <div className="md:col-span-6"><label className="text-xs font-semibold text-slate-600">Notes (opt)</label><input name="rateNotes" value={nom.rateNotes} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" placeholder="e.g., plus travel" /></div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-4 flex items-center gap-3"><button type="submit" className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Submit</button></div>
             </form>
