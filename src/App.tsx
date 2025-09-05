@@ -243,11 +243,14 @@ export default function App() {
           </section>
         )}
 
+        // ... after the closing </section>} for the speakers tab ...
+
         {tab === 'nominate' && (
           <section className="grid lg:grid-cols-3 gap-6">
-            <form className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <form className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6" onSubmit={submitNomination}>
               <h2 className="text-lg font-semibold">Nominate a Speaker</h2>
               <p className="mt-1 text-sm text-slate-600">Anyone can nominate. Professional speakers must disclose EO rates.</p>
+
               <div className="my-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
                 <h3 className="font-semibold text-slate-800">✨ AI Topic Suggester</h3>
                 <p className="mt-1 text-sm text-slate-600">Paste the speaker's bio or LinkedIn summary below to get AI-suggested topics.</p>
@@ -291,7 +294,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-              </div>
               <div className="mt-4 flex items-center gap-3"><button type="submit" className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Submit</button></div>
             </form>
             <aside className="rounded-2xl p-6" style={{ background: `${EO.blue}0D`, border: `1px solid ${EO.blue}33` }}>
@@ -300,6 +302,8 @@ export default function App() {
             </aside>
           </section>
         )}
+
+
 
         {tab === 'admin' && (
           <section className="space-y-6">
