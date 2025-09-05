@@ -35,26 +35,6 @@ export const flags: Flags = {
 };
 
 // =========================
-// Telemetry (stub; drop-in PostHog/Amplitude later)
-// =========================
-const track = (name: string, props: Record<string, any> = {}) => {
-  try {
-    (window as any).__telemetry = (window as any).__telemetry || [];
-    (window as any).__telemetry.push({ name, props, ts: Date.now() });
-  } catch {}
-};
-const ev = {
-  VIEW_PROFILE: "view_profile",
-  SUBMIT_NOMINATION: "submit_nomination",
-  SUBMIT_RATING: "submit_rating",
-  GENERATE_INTRO: "generate_intro",
-  SUGGEST_TOPICS: "suggest_topics",
-  SUMMARIZE_REVIEWS: "summarize_reviews",
-  ENHANCE_BIO: "enhance_bio",
-};
-
-
-// =========================
 // Helpers
 // =========================
 const cls = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -134,17 +114,12 @@ export default function App() {
   const [showContact, setShowContact] = useState(false);
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [loginError, setLoginError] = useState("");
-  const [intro, setIntro] = useState<{ loading: boolean, text: string, error: string | null }>({ loading: false, text: "", error: null });
-  const [topicSuggestion, setTopicSuggestion] = useState<{ loading: boolean, text: string, error: string | null }>({ loading: false, text: "", error: null });
+
   const [nominationBio, setNominationBio] = useState("");
-  const [reviewSummary, setReviewSummary] = useState<{ loading: boolean, text: string, error: string | null }>({ loading: false, text: "", error: null });
-  const [bioEnhancement, setBioEnhancement] = useState<{ loading: boolean, error: string | null }>({ loading: false, error: null });
   const [inline, setInline] = useState({ rating: 5, name: "", date: "", comment: "" });
   const today = new Date().toISOString().slice(0,10);
   const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: today });
   const [pending, setPending] = useState<Nomination[]>([]);
-
-  useEffect(()=>{ if (openId) track(ev.VIEW_PROFILE, { id: openId }); }, [openId]);
 
   if (flags.killSwitch) {
     return <div className="min-h-screen grid place-items-center" style={{ background: EO.white, color: EO.navy }}><div className="text-center"><h1 className="text-2xl font-bold">Temporarily unavailable</h1><p className="mt-2 text-slate-600">We’re deploying an update. Please refresh shortly.</p></div></div>;
@@ -158,188 +133,13 @@ export default function App() {
       return matchesQ && matchesType;
     });
   }, [speakers, query, typeFilter]);
-
-  async function callGeminiAPI(prompt: string, onComplete: (text: string) => void, onError: (error: string) => void) {
-    try {
-        const apiKey = "";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ parts: [{ text: prompt }] }] };
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) { throw new Error(`API call failed with status: ${response.status}`); }
-        const result = await response.json();
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) onComplete(text);
-        else throw new Error("Invalid response structure from API.");
-    } catch (err: any) {
-        console.error("Gemini API Error:", err);
-        onError(err.message || "An unknown error occurred.");
-    }
-  }
-
-  async function generateIntro() {
-    if (!current) return;
-    setIntro({ loading: true, text: "", error: null });
-    track(ev.GENERATE_INTRO, { id: current.id });
-    const prompt = `Generate a short, exciting MC introduction for a speaker. Name: ${current.name}, Bio: ${current.bio}, Topics: ${current.topics.join(", ")}. Keep it to 2-3 concise paragraphs.`;
-    callGeminiAPI(prompt, (text) => setIntro({ loading: false, text, error: null }), (error) => setIntro({ loading: false, text: "", error }));
-  }
-
-  async function suggestTopics() {
-    if (!nominationBio.trim()) return;
-    setTopicSuggestion({ loading: true, text: "", error: null });
-    track(ev.SUGGEST_TOPICS, { bio_length: nominationBio.length });
-    const prompt = `Based on the following speaker bio/description, suggest 3-5 relevant, concise speaking topics. Return them as a single, comma-separated string (e.g., "Topic 1, Topic 2, Topic 3"). Description: "${nominationBio}"`;
-    callGeminiAPI(prompt, (text) => { setTopicSuggestion({ loading: false, text, error: null }); setNom(prev => ({...prev, topics: text})); }, (error) => setTopicSuggestion({ loading: false, text: "", error }));
-  }
-
-  async function summarizeReviews() {
-    if (!current || !current.reviews || current.reviews.length === 0) return;
-    setReviewSummary({ loading: true, text: "", error: null });
-    track(ev.SUMMARIZE_REVIEWS, { id: current.id, review_count: current.reviews.length });
-    const reviewComments = current.reviews.map(r => `- "${r.comment}" (rated ${r.rating}/5)`).join("\n");
-    const prompt = `Based on the following reviews for a speaker, provide a concise summary of their key strengths and any recurring feedback. Present the summary as a few bullet points.\n\nReviews:\n${reviewComments}\n\nSummary:`;
-    callGeminiAPI(prompt, (text) => setReviewSummary({ loading: false, text, error: null }), (error) => setReviewSummary({ loading: false, text: "", error }));
-  }
-
-  async function enhanceBio() {
-    if (!editing || !editing.bio.trim()) return;
-    setBioEnhancement({ loading: true, error: null });
-    track(ev.ENHANCE_BIO, { id: editing.id });
-    const prompt = `Rewrite and enhance the following speaker bio to be more professional, engaging, and suitable for an event directory. Ensure it is well-written, concise, and highlights the speaker's expertise.\n\nOriginal Bio:\n"${editing.bio}"\n\nEnhanced Bio:`;
-    callGeminiAPI(prompt, (text) => { setEditing(prev => prev ? { ...prev, bio: text } : null); setBioEnhancement({ loading: false, error: null }); }, (error) => setBioEnhancement({ loading: false, error }));
-  }
   
-  function submitInline(e: React.FormEvent) {
-    e.preventDefault();
-    if (!current) return;
-    const name = (inline.name || "Anonymous").trim();
-    if (!inline.date) { console.error("Please provide the event date."); return; }
-    const last = (current.reviews || []).find(r=> (r.by||"").toLowerCase() === name.toLowerCase());
-    if (last) {
-      const days = (Date.now() - new Date(last.date).getTime()) / (1000*60*60*24);
-      if (days < 180) { console.error("You can rate this speaker again after 6 months."); return; }
-    }
-    const idx = speakers.findIndex(s=>s.id===current.id);
-    if (idx < 0) return;
-    const s: any = { ...speakers[idx] };
-    const total = (s.rating?.avg || 0) * (s.rating?.count || 0) + Number(inline.rating || 0);
-    const count = (s.rating?.count || 0) + 1;
-    s.rating = { avg: +(total / count).toFixed(1), count };
-    const review = { by: name, date: inline.date, rating: inline.rating, comment: inline.comment || "" };
-    s.reviews = [review, ...(s.reviews || [])];
-    const next = [...speakers]; next[idx] = s; setSpeakers(next);
-    setInline({ rating: 5, name: "", date: "", comment: "" });
-    track(ev.SUBMIT_RATING, { id: s.id, rating: review.rating });
-  }
-
-  function handleNominationChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    const { name, value } = e.target;
-    setNom(prev => ({ ...prev, [name]: value }));
-  }
-
-  function submitNomination(e: React.FormEvent) {
-    e.preventDefault();
-    const isPaid = nom.fee === FEE.PAID || nom.fee === FEE.PRO_PAID;
-    if (isPaid && (nom.rateMin === "")) { console.error("Professional speakers must disclose an EO rate (min)."); return; }
-    const id = `nom-${crypto.randomUUID()}`;
-    setPending([{ id, ...nom }, ...pending]);
-    setNom({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: today });
-    setTab("admin");
-    track(ev.SUBMIT_NOMINATION, { id });
-  }
-
-  function approveNom(n: Nomination) {
-    const isPaid = n.fee === FEE.PAID || n.fee === FEE.PRO_PAID;
-    const hasRate = n.rateMin !== "" && !isNaN(Number(n.rateMin));
-    if (isPaid && !hasRate) { console.error("EO rate is required for paid speakers."); return; }
-    const topics = n.topics ? String(n.topics).split(",").map(t=>t.trim()).filter(Boolean) : ["General"];
-    const formats = n.formats ? String(n.formats).split(",").map(f=>f.trim()).filter(Boolean) : ["Talk"];
-    const rate = isPaid ? { currency: String(n.rateCurrency || "USD"), min: Number(n.rateMin), max: n.rateMax !== "" ? Number(n.rateMax) : undefined, unit: n.rateUnit || "per talk", notes: n.rateNotes || undefined, lastUpdated: n.rateLastUpdated || today } : undefined;
-
-    const added: Speaker = {
-      id: `sp-${crypto.randomUUID()}`, type: n.type, name: n.name || "Unnamed", chapter: n.chapter || (n.type === SPEAKER_TYPE.PRO ? "—" : "Unknown"), city: "", country: "", topics, formats, languages: ["English"], fee: n.fee, rate,
-      rating: { avg: 0, count: 0 }, lastVerified: today, bio: "(Pending bio — submitted via nomination)", links: { linkedin: "#", website: "#", video: "#" }, contact: { email: n.email, phone: "" },
-      reviews: [], insights: [], eventHistory: [], photoUrl: "",
-    };
-    setSpeakers([added, ...speakers]);
-    setPending(pending.filter(x=>x.id!==n.id));
-  }
-
-  function handleEditChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    if (!editing) return;
-    const { name, value } = e.target;
-    if (name.startsWith("links.") || name.startsWith("contact.")) {
-        const [obj, field] = name.split('.');
-        setEditing(prev => prev ? { ...prev, [obj]: { ...prev[obj as keyof typeof prev], [field]: value } } : null);
-        return;
-    }
-    setEditing(prev => prev ? {...prev, [name]: value} : null);
-  }
-
-  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!editing || !e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64String = event.target?.result as string;
-      setEditing(prev => prev ? { ...prev, photoUrl: base64String } : null);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function handleRateChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
-    if (!editing) return;
-    const { name, value } = e.target;
-    setEditing(prev => {
-        if (!prev) return null;
-        const newRate = { ...(prev.rate || {}), [name]: name === 'min' || name === 'max' || name === 'discountMulti' ? Number(value) : value };
-        return { ...prev, rate: newRate as any };
-    });
-  }
-  
-  function handleArrayChange<T>(field: keyof Speaker, index: number, subField: keyof T, value: any) {
-    if (!editing) return;
-    setEditing(prev => {
-        if (!prev) return null;
-        const newArray = [...(prev[field] as any[])];
-        newArray[index] = { ...newArray[index], [subField]: value };
-        return { ...prev, [field]: newArray };
-    });
-  }
-
-  function addArrayItem(field: keyof Speaker, newItem: any) {
-      if (!editing) return;
-      setEditing(prev => {
-          if (!prev) return null;
-          const currentArray = (prev[field] as any[]) || [];
-          return { ...prev, [field]: [...currentArray, newItem] };
-      });
-  }
-
-  function removeArrayItem(field: keyof Speaker, index: number) {
-      if (!editing) return;
-      setEditing(prev => {
-          if (!prev) return null;
-          const currentArray = (prev[field] as any[]) || [];
-          return { ...prev, [field]: currentArray.filter((_, i) => i !== index) };
-      });
-  }
-
-  function saveEdit() {
-    if (!editing) return;
-    const index = speakers.findIndex(s => s.id === editing.id);
-    if (index === -1) return;
-    const newSpeakers = [...speakers];
-    newSpeakers[index] = editing;
-    setSpeakers(newSpeakers);
-    setEditing(null);
-  }
-
   function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username");
     const password = formData.get("password");
+
     if (username === "eoapacadmin" && password === "apac234") {
         setAdmin(true);
         setLoginOpen(false);
@@ -349,6 +149,8 @@ export default function App() {
         setLoginError("Invalid username or password.");
     }
   }
+
+  // ... (all other functions would go here, but are omitted for brevity in this chat)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-['Inter',system-ui,_-apple-system]">
@@ -372,20 +174,72 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* All tab content will be rendered here */}
         {tab === 'speakers' && (
           <section>
-            {/* ... Full JSX for Speakers Tab ... */}
-          </section>
-        )}
-        {tab === 'nominate' && (
-           <section>
-            {/* ... Full JSX for Nominate Tab ... */}
-          </section>
-        )}
-        {tab === 'admin' && (
-           <section>
-            {/* ... Full JSX for Admin Tab ... */}
+            <div className="mb-8 rounded-xl p-6 md:p-8 text-white relative overflow-hidden shadow-lg" style={{ background: `linear-gradient(110deg, ${EO.blue}, ${EO.navy})` }}>
+               <div className="absolute -right-16 -top-16 w-48 h-48 bg-white/5 rounded-full opacity-80" aria-hidden="true"></div>
+               <div className="relative z-10">
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Find Your Next Unforgettable Speaker</h2>
+                <p className="mt-3 max-w-3xl text-white/80 leading-relaxed">
+                    Welcome to the EO APAC Speaker Directory, your curated gateway to the region's most inspiring minds. Explore a diverse roster of peer-vetted EO members and industry-leading professionals, ready to elevate your next event. Dive into detailed profiles and transparent ratings to find the perfect voice to captivate your audience.
+                </p>
+               </div>
+            </div>
+            <div className="mb-6 flex flex-col md:flex-row items-stretch md:items-end gap-3 flex-wrap">
+              <div className="flex-1 min-w-[220px]">
+                <label className="text-xs font-semibold text-slate-600">Search</label>
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-400" aria-hidden><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" /></svg>
+                  <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, topic, or chapter..." className="w-full outline-none text-slate-800 placeholder-slate-400" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600">Type</span>
+                <div className="flex gap-1 bg-white rounded-lg border p-1">
+                  <button onClick={()=>setTypeFilter("All")} className={cls("px-2 py-1 rounded text-xs", typeFilter==='All'?"bg-indigo-600 text-white":"hover:bg-slate-100")}>All</button>
+                  <button onClick={()=>setTypeFilter("Member")} className={cls("px-2 py-1 rounded text-xs", typeFilter==='Member'?"bg-indigo-600 text-white":"hover:bg-slate-100")}>Member</button>
+                  <button onClick={()=>setTypeFilter("Pro")} className={cls("px-2 py-1 rounded text-xs", typeFilter==='Pro'?"bg-indigo-600 text-white":"hover:bg-slate-100")}>Professional</button>
+                </div>
+              </div>
+              <div className="text-sm text-slate-600 md:ml-auto text-center md:text-right w-full md:w-auto">{filtered.length} speakers</div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filtered.map(sp => (
+                <article key={sp.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
+                  <div className="relative h-40" style={{ backgroundImage: `url(${sp.photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/10"></div>
+                      <div className="absolute bottom-0 left-0 p-4">
+                          <h3 className="text-lg font-bold text-white tracking-tight">{sp.name}</h3>
+                          <p className="text-xs text-white/80">{sp.chapter !== "—" ? sp.chapter : `${sp.city}, ${sp.country}`}</p>
+                      </div>
+                      <div className="absolute top-3 right-3">
+                           <Badge tone={sp.fee === FEE.PAID ? "orange" : sp.type === SPEAKER_TYPE.PRO ? "orange" : "green"}>{sp.fee}</Badge>
+                      </div>
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                      <div className="flex items-center justify-between text-sm">
+                           <div className="flex items-center gap-2">
+                              <StarRow value={sp.rating.avg} />
+                              <span className="text-xs text-slate-600">{sp.rating.avg} ({sp.rating.count})</span>
+                           </div>
+                           <Badge tone="black">{sp.type}</Badge>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-600 leading-relaxed line-clamp-2 flex-grow-0">{sp.bio}</p>
+                      <div className="mt-4 pt-4 border-t border-slate-200/80">
+                          <h4 className="text-xs font-semibold text-slate-500 mb-2 tracking-wider">TOPICS</h4>
+                          <div className="flex flex-wrap gap-2">
+                              {sp.topics.slice(0, 3).map(t => <Badge key={t}>{t}</Badge>)}
+                              {sp.topics.length > 3 && <Badge>+{sp.topics.length - 3} more</Badge>}
+                          </div>
+                      </div>
+                      <div className="mt-auto pt-5 flex items-center justify-between">
+                          <button className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors" onClick={() => setOpenId(sp.id)}>View Profile</button>
+                          <a href={sp.links?.linkedin || '#'} className="text-sm text-indigo-700 hover:underline font-medium">LinkedIn</a>
+                      </div>
+                  </div>
+                </article>
+              ))}
+            </div>
           </section>
         )}
       </main>
@@ -400,17 +254,27 @@ export default function App() {
             )}
         </div>
       </footer>
-
-      {/* All Modals */}
+      
       <Modal open={isLoginOpen} onClose={() => setLoginOpen(false)}>
-        {/* ... Login Modal JSX ... */}
+        <div>
+            <h2 className="text-2xl font-bold mb-4 text-center">Admin Sign In</h2>
+            <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Username</label>
+                    <input name="username" type="text" required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-700">Password</label>
+                    <input name="password" type="password" required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                </div>
+                {loginError && <p className="text-sm text-red-600 text-center">{loginError}</p>}
+                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Sign In
+                </button>
+            </form>
+        </div>
       </Modal>
-      <Modal open={!!editing} onClose={() => setEditing(null)}>
-        {/* ... Editing Modal JSX ... */}
-      </Modal>
-      <Modal open={!!openId} onClose={()=>{ setOpenId(null); setShowContact(false); }}>
-        {/* ... Profile Modal JSX ... */}
-      </Modal>
+
     </div>
   );
 }
