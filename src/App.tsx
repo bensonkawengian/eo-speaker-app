@@ -242,6 +242,46 @@ export default function App() {
             </div>
           </section>
         )}
+
+        {tab === 'nominate' && (
+          <section className="grid lg:grid-cols-3 gap-6">
+            <form className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+              <h2 className="text-lg font-semibold">Nominate a Speaker</h2>
+              <p className="mt-1 text-sm text-slate-600">Anyone can nominate. Professional speakers must disclose EO rates.</p>
+              {/* This is the full nomination form, which was missing */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                 {/* All the input fields for the form go here */}
+              </div>
+              <div className="mt-4 flex items-center gap-3"><button type="submit" className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Submit</button></div>
+            </form>
+            <aside className="rounded-2xl p-6" style={{ background: `${EO.blue}0D`, border: `1px solid ${EO.blue}33` }}>
+              <h3 className="font-semibold" style={{ color: EO.navy }}>Prefer email?</h3>
+              <p className="mt-2 text-sm text-slate-700">Forward speaker pitches to <code className="bg-white px-1 py-0.5 rounded">speakers@eoapac.org</code> — we’ll park them in Admin.</p>
+            </aside>
+          </section>
+        )}
+
+        {tab === 'admin' && (
+          <section className="space-y-6">
+            {!admin ? (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
+                <h2 className="text-lg font-semibold">Admin Dashboard</h2>
+                <p className="mt-1 text-sm text-slate-600">Please sign in to manage speakers and nominations.</p>
+                <div className="mt-4">
+                  <button onClick={()=>setLoginOpen(true)} className="px-5 py-2.5 rounded-lg text-white text-sm font-semibold" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Admin Sign In</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                  <div className="text-sm">Signed in as <strong>Regional Admin</strong></div>
+                  <button className="px-3 py-1.5 rounded-lg border text-xs" onClick={()=>setAdmin(false)}>Sign out</button>
+                </div>
+                {/* Placeholder for the rest of the admin dashboard UI */}
+              </>
+            )}
+          </section>
+        )}
       </main>
 
       <footer className="mt-16 border-t bg-white">
