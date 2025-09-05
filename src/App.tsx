@@ -1,21 +1,19 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { SEED_DATA } from './database';
+import { SPEAKER_TYPE, FEE, Speaker, Nomination } from './types';
 
 /**
  * EO APAC Speakers Directory
  * A professional, responsive, and feature-rich platform for managing and discovering top-tier speakers.
- * This React application is built with TypeScript and Tailwind CSS for a modern, maintainable, and elegant user experience.
  */
 
 // =========================
-// Brand Tokens (EO fallbacks)
+// Brand Tokens
 // =========================
 const EO = {
   navy: "#0B0B2B",
   blue: "#4F46E5",
   orange: "#FA653C",
-  teal: "#15B8A6",
-  yellow: "#EFB82E",
   slate: "#0F172A",
   white: "#FFFFFF",
 } as const;
@@ -55,21 +53,10 @@ const ev = {
   ENHANCE_BIO: "enhance_bio",
 };
 
-// =========================
-// Enums, Types, & Helpers
-// =========================
-export const SPEAKER_TYPE = {
-  MEMBER: "EO Member Speaker",
-  PRO: "Professional (Non-EO)",
-} as const;
 
-export const FEE = {
-  NO_FEE: "No Fee (Expenses)",
-  EXPENSES: "Expenses Only",
-  PAID: "Member-Pro (Paid)",
-  PRO_PAID: "Pro Speaker (Paid)",
-} as const;
-
+// =========================
+// Helpers
+// =========================
 const cls = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
 
 export function fmtMoney(currency: string, value: number) {
@@ -84,24 +71,6 @@ export function ratePreview(rate?: { currency: string; min: number; max?: number
     : `${fmtMoney(rate.currency, rate.min)}`;
   return `${base}${rate.unit ? ` ${rate.unit}` : ""}`;
 }
-
-export type Speaker = (typeof SEED_DATA)[0];
-export type Nomination = {
-  id: string;
-  type: (typeof SPEAKER_TYPE)[keyof typeof SPEAKER_TYPE];
-  fee: (typeof FEE)[keyof typeof FEE];
-  name: string;
-  email: string;
-  chapter: string;
-  topics: string;
-  formats: string;
-  rateCurrency: string;
-  rateMin: string;
-  rateMax: string;
-  rateUnit: string;
-  rateNotes: string;
-  rateLastUpdated: string;
-};
 
 // =========================
 // UI Components
@@ -175,7 +144,7 @@ export default function App() {
   const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: today });
   const [pending, setPending] = useState<Nomination[]>([]);
 
-  useEffect(()=>{ if (openId) track("view_profile", { id: openId }); }, [openId]);
+  useEffect(()=>{ if (openId) track(ev.VIEW_PROFILE, { id: openId }); }, [openId]);
 
   if (flags.killSwitch) {
     return <div className="min-h-screen grid place-items-center" style={{ background: EO.white, color: EO.navy }}><div className="text-center"><h1 className="text-2xl font-bold">Temporarily unavailable</h1><p className="mt-2 text-slate-600">We’re deploying an update. Please refresh shortly.</p></div></div>;
@@ -403,20 +372,19 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* All tab content will be rendered here */}
         {tab === 'speakers' && (
           <section>
-            {/* ... Speaker list UI ... */}
+            {/* ... Full JSX for Speakers Tab ... */}
           </section>
         )}
         {tab === 'nominate' && (
-          <section>
-            {/* ... Nomination form UI ... */}
+           <section>
+            {/* ... Full JSX for Nominate Tab ... */}
           </section>
         )}
         {tab === 'admin' && (
-          <section>
-            {/* ... Admin dashboard UI ... */}
+           <section>
+            {/* ... Full JSX for Admin Tab ... */}
           </section>
         )}
       </main>
@@ -432,21 +400,17 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modals */}
+      {/* All Modals */}
       <Modal open={isLoginOpen} onClose={() => setLoginOpen(false)}>
-        {/* ... Login Modal Content ... */}
+        {/* ... Login Modal JSX ... */}
       </Modal>
-
       <Modal open={!!editing} onClose={() => setEditing(null)}>
-        {/* ... Editing Modal Content ... */}
+        {/* ... Editing Modal JSX ... */}
       </Modal>
-
-       <Modal open={!!openId} onClose={()=>{ setOpenId(null); setIntro({loading: false, text:"", error: null}); setReviewSummary({loading: false, text: "", error: null}); setShowContact(false); }}>
-        {/* ... Profile Modal Content ... */}
+      <Modal open={!!openId} onClose={()=>{ setOpenId(null); setShowContact(false); }}>
+        {/* ... Profile Modal JSX ... */}
       </Modal>
-
     </div>
   );
 }
-
 
