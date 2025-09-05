@@ -372,6 +372,7 @@ export default function App() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* All tab content will be rendered here */}
         {tab === 'speakers' && (
           <section>
             {/* ... Full JSX for Speakers Tab ... */}
