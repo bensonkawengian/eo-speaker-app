@@ -111,20 +111,13 @@ export default function App() {
   const current = useMemo(()=> speakers.find(s=>s.id===openId) || null, [openId, speakers]);
   const [admin, setAdmin] = useState(false);
   const [editing, setEditing] = useState<Speaker | null>(null);
-  const [showContact, setShowContact] = useState(false);
   const [isLoginOpen, setLoginOpen] = useState(false);
   const [loginError, setLoginError] = useState("");
-
   const [nominationBio, setNominationBio] = useState("");
-  const [inline, setInline] = useState({ rating: 5, name: "", date: "", comment: "" });
-  const today = new Date().toISOString().slice(0,10);
-  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: today });
+  const [topicSuggestion, setTopicSuggestion] = useState({ loading: false, error: "" });
+  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10) });
   const [pending, setPending] = useState<Nomination[]>([]);
-
-  if (flags.killSwitch) {
-    return <div className="min-h-screen grid place-items-center" style={{ background: EO.white, color: EO.navy }}><div className="text-center"><h1 className="text-2xl font-bold">Temporarily unavailable</h1><p className="mt-2 text-slate-600">We’re deploying an update. Please refresh shortly.</p></div></div>;
-  }
-
+  
   const filtered = useMemo(()=>{
     const q = query.trim().toLowerCase();
     return speakers.filter(s => {
@@ -139,7 +132,6 @@ export default function App() {
     const formData = new FormData(e.currentTarget);
     const username = formData.get("username");
     const password = formData.get("password");
-
     if (username === "eoapacadmin" && password === "apac234") {
         setAdmin(true);
         setLoginOpen(false);
@@ -150,7 +142,14 @@ export default function App() {
     }
   }
 
-  // ... (all other functions would go here, but are omitted for brevity in this chat)
+  function handleNominationChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
+    const { name, value } = e.target;
+    setNom(prev => ({ ...prev, [name]: value }));
+  }
+
+  function suggestTopics() { /* Placeholder for Gemini API call */ }
+  function submitNomination(e: React.FormEvent) { e.preventDefault(); }
+  function approveNom(n: Nomination) { /* Placeholder */ }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-['Inter',system-ui,_-apple-system]">
@@ -243,35 +242,18 @@ export default function App() {
           </section>
         )}
 
-        // ... after the closing </section>} for the speakers tab ...
-
         {tab === 'nominate' && (
           <section className="grid lg:grid-cols-3 gap-6">
             <form className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6" onSubmit={submitNomination}>
               <h2 className="text-lg font-semibold">Nominate a Speaker</h2>
               <p className="mt-1 text-sm text-slate-600">Anyone can nominate. Professional speakers must disclose EO rates.</p>
-
               <div className="my-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
                 <h3 className="font-semibold text-slate-800">✨ AI Topic Suggester</h3>
                 <p className="mt-1 text-sm text-slate-600">Paste the speaker's bio or LinkedIn summary below to get AI-suggested topics.</p>
-                <textarea
-                  value={nominationBio}
-                  onChange={(e) => setNominationBio(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
-                  rows={4}
-                  placeholder="e.g., Jane Doe is an award-winning entrepreneur who..."
-                />
-                <button
-                  type="button"
-                  onClick={suggestTopics}
-                  disabled={topicSuggestion.loading}
-                  className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400"
-                >
-                  {topicSuggestion.loading ? "Suggesting..." : "✨ Suggest Topics"}
-                </button>
+                <textarea value={nominationBio} onChange={(e) => setNominationBio(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" rows={4} placeholder="e.g., Jane Doe is an award-winning entrepreneur who..." />
+                <button type="button" onClick={suggestTopics} disabled={topicSuggestion.loading} className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400">{topicSuggestion.loading ? "Suggesting..." : "✨ Suggest Topics"}</button>
                 {topicSuggestion.error && <p className="mt-2 text-sm text-red-600">{topicSuggestion.error}</p>}
               </div>
-
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className="text-xs font-semibold text-slate-600">Type</label><select name="type" value={nom.type} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
                 <div><label className="text-xs font-semibold text-slate-600">Fee</label><select name="fee" value={nom.fee} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
@@ -280,7 +262,6 @@ export default function App() {
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Chapter / Company (optional)</label><input name="chapter" value={nom.chapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input name="topics" value={nom.topics} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Formats (e.g., Talk, Workshop)</label><input name="formats" value={nom.formats} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-
                 {(nom.fee === FEE.PAID || nom.fee === FEE.PRO_PAID) && (
                   <div className="md:col-span-2 rounded-xl border border-amber-300/80 bg-amber-50 p-4">
                     <div className="text-sm font-semibold text-amber-900">EO Chapter Rate</div>
@@ -302,30 +283,6 @@ export default function App() {
             </aside>
           </section>
         )}
-
-
-
-        {tab === 'admin' && (
-          <section className="space-y-6">
-            {!admin ? (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
-                <h2 className="text-lg font-semibold">Admin Dashboard</h2>
-                <p className="mt-1 text-sm text-slate-600">Please sign in to manage speakers and nominations.</p>
-                <div className="mt-4">
-                  <button onClick={()=>setLoginOpen(true)} className="px-5 py-2.5 rounded-lg text-white text-sm font-semibold" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Admin Sign In</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-                  <div className="text-sm">Signed in as <strong>Regional Admin</strong></div>
-                  <button className="px-3 py-1.5 rounded-lg border text-xs" onClick={()=>setAdmin(false)}>Sign out</button>
-                </div>
-                {/* Placeholder for the rest of the admin dashboard UI */}
-              </>
-            )}
-          </section>
-        )}
       </main>
 
       <footer className="mt-16 border-t bg-white">
@@ -338,28 +295,8 @@ export default function App() {
             )}
         </div>
       </footer>
-      
-      <Modal open={isLoginOpen} onClose={() => setLoginOpen(false)}>
-        <div>
-            <h2 className="text-2xl font-bold mb-4 text-center">Admin Sign In</h2>
-            <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Username</label>
-                    <input name="username" type="text" required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700">Password</label>
-                    <input name="password" type="password" required className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm shadow-sm placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                </div>
-                {loginError && <p className="text-sm text-red-600 text-center">{loginError}</p>}
-                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Sign In
-                </button>
-            </form>
-        </div>
-      </Modal>
-
     </div>
   );
 }
+
 
