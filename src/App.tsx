@@ -300,7 +300,20 @@ export default function App() {
                   <div className="text-sm">Signed in as <strong>Regional Admin</strong></div>
                   <button className="px-3 py-1.5 rounded-lg border text-xs" onClick={()=>setAdmin(false)}>Sign out</button>
                 </div>
-                {/* Placeholder for the rest of the admin dashboard UI */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mt-6">
+                  <h3 className="text-lg font-semibold">Pending Nominations</h3>
+                  {pending.length === 0 && <div className="mt-2 text-sm text-slate-500">No new nominations to review.</div>}
+                  <div className="mt-4 space-y-4">
+                    {pending.map(n=> (<div key={n.id} className="p-4 rounded-xl border bg-slate-50/70 shadow-sm"><div className="flex items-start justify-between"><div className="flex items-start gap-3"><Avatar name={n.name} size={40} /><div><div className="font-semibold text-slate-900">{n.name}</div><div className="text-sm text-slate-600">{n.type} {"\u00b7"} {n.fee}</div><a href={`mailto:${n.email}`} className="text-sm text-indigo-600 hover:underline">{n.email}</a></div></div><div className="text-right flex-shrink-0 ml-4">{(n.fee===FEE.PAID || n.fee===FEE.PRO_PAID) ? (n.rateMin ? (<div className="text-xs text-slate-600">EO rate: <span className="font-medium text-slate-800">{ratePreview({ currency: n.rateCurrency, min: Number(n.rateMin), max: n.rateMax?Number(n.rateMax):undefined, unit: n.rateUnit })}</span></div>) : (<Badge tone="orange">Rate Required</Badge>)) : (<Badge tone="green">No Fee</Badge>)}</div></div><div className="mt-3 border-t border-slate-200 pt-3 space-y-1.5">{n.chapter && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Chapter/Co:</strong> {n.chapter}</div>}{n.topics && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Topics:</strong> {n.topics}</div>}{(n.fee === FEE.PAID || n.fee === FEE.PRO_PAID) && n.rateNotes && (<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Rate Notes:</strong> {n.rateNotes}</div>)}</div><div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2"><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" onClick={()=>approveNom(n)}>Approve</button><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors" onClick={()=>setPending(pending.filter(x=>x.id!==n.id))}>Reject</button></div></div>))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <h3 className="text-lg font-semibold">Manage Speakers</h3>
+                    <div className="mt-4 space-y-3">
+                        {speakers.map(sp => (<div key={sp.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50"><div className="flex items-center gap-3"><Avatar name={sp.name} src={sp.photoUrl} size={40}/><div><div className="font-semibold text-slate-900">{sp.name}</div><div className="text-xs text-slate-600">{sp.chapter}</div></div></div><button onClick={() => setEditing(JSON.parse(JSON.stringify(sp)))} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">Edit</button></div>))}
+                    </div>
+                </div>
               </>
             )}
           </section>
