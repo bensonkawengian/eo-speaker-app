@@ -283,6 +283,29 @@ export default function App() {
             </aside>
           </section>
         )}
+      
+      {tab === 'admin' && (
+          <section className="space-y-6">
+            {!admin ? (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
+                <h2 className="text-lg font-semibold">Admin Dashboard</h2>
+                <p className="mt-1 text-sm text-slate-600">Please sign in to manage speakers and nominations.</p>
+                <div className="mt-4">
+                  <button onClick={()=>setLoginOpen(true)} className="px-5 py-2.5 rounded-lg text-white text-sm font-semibold" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Admin Sign In</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                  <div className="text-sm">Signed in as <strong>Regional Admin</strong></div>
+                  <button className="px-3 py-1.5 rounded-lg border text-xs" onClick={()=>setAdmin(false)}>Sign out</button>
+                </div>
+                {/* Placeholder for the rest of the admin dashboard UI */}
+              </>
+            )}
+          </section>
+        )}
+        
       </main>
 
       <footer className="mt-16 border-t bg-white">
