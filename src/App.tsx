@@ -99,6 +99,21 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
+async function geminiApiCall(prompt: string): Promise<string> {
+  console.log(`Making a mock API call with prompt: ${prompt}`);
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  if (prompt.includes("topics")) {
+    return "Leadership, Team Building, Scaling, Fundraising";
+  }
+  if (prompt.includes("match")) {
+    return "sp-1, sp-2, sp-3";
+  }
+  if (prompt.includes("event ideas")) {
+    return "Event Title 1: Scaling New Heights\\nEvent Description 1: An event about scaling your business.\\nQ&A 1: What is the biggest challenge in scaling?\\n---\\nEvent Title 2: The Future of Work\\nEvent Description 2: A discussion on the future of work.\\nQ&A 2: How will AI change the workplace?\\n---\\nEvent Title 3: Leadership in the 21st Century\\nEvent Description 3: A talk on modern leadership.\\nQ&A 3: What is the most important quality of a leader?";
+  }
+  return "Sorry, I can't help with that.";
+}
+
 // =========================
 // Main App Component
 // =========================
@@ -117,6 +132,9 @@ export default function App() {
   const [topicSuggestion, setTopicSuggestion] = useState({ loading: false, error: "" });
   const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
   const [pending, setPending] = useState<Nomination[]>([]);
+  const [eventDescription, setEventDescription] = useState("");
+  const [matchingSpeakers, setMatchingSpeakers] = useState<Speaker[]>([]);
+  const [eventIdeas, setEventIdeas] = useState<string>("");
   
   const filtered = useMemo(()=>{
     const q = query.trim().toLowerCase();
@@ -147,7 +165,50 @@ export default function App() {
     setNom(prev => ({ ...prev, [name]: value }));
   }
 
-  function suggestTopics() { /* Placeholder for Gemini API call */ }
+  async function generateEventIdeas(speaker: Speaker) {
+    const prompt = `Based on the speaker profile of ${speaker.name} who is an expert in ${speaker.topics.join(', ')}, generate three potential event titles, a short event description, and three sample Q&A questions.`;
+    const result = await geminiApiCall(prompt);
+    setEventIdeas(result);
+  }
+
+  function draftBookingEmail(speaker: Speaker) {
+    const subject = `EO APAC Speaker Inquiry: ${speaker.name}`;
+    const body = `Dear ${speaker.name},
+
+We are interested in the possibility of having you speak at an upcoming EO event.
+
+[Your event details here]
+
+Could you please let us know your availability and requirements?
+
+Best regards,
+[Your Name]
+[Your Chapter]`;
+    window.location.href = `mailto:${speaker.contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  async function findMatchingSpeakers() {
+    if (!eventDescription) return;
+    const speakerSummary = speakers.map(s => `id: ${s.id}, name: ${s.name}, topics: ${s.topics.join(', ')}`).join('\\n');
+    const prompt = `Based on the event description: "${eventDescription}", and the following speaker list:\\n${speakerSummary}\\nReturn only the comma-separated IDs of the top 3 matching speakers.`;
+    const result = await geminiApiCall(prompt);
+    const ids = result.split(',').map(id => id.trim());
+    setMatchingSpeakers(speakers.filter(s => ids.includes(s.id)));
+  }
+
+  async function suggestTopics() {
+    if (!nominationBio) return;
+    setTopicSuggestion({ loading: true, error: "" });
+    try {
+      const prompt = `Based on the following bio, suggest 3-5 relevant topics as a comma-separated string: ${nominationBio}`;
+      const result = await geminiApiCall(prompt);
+      setNom(prev => ({ ...prev, topics: result }));
+    } catch (error) {
+      setTopicSuggestion({ loading: false, error: "Failed to suggest topics." });
+    } finally {
+      setTopicSuggestion({ loading: false, error: "" });
+    }
+  }
   function submitNomination(e: React.FormEvent) { e.preventDefault(); }
   function approveNom(n: Nomination) { /* Placeholder */ }
   function handleUpdateSpeaker() {
@@ -216,6 +277,45 @@ export default function App() {
     form.reset();
   }
 
+  function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const csv = event.target.result as string;
+          const lines = csv.split('\n').slice(1);
+          const newSpeakers = lines.map(line => {
+            const values = line.split(',');
+            const newSpeaker: Speaker = {
+              id: `sp-${Math.random().toString(36).substr(2, 9)}`,
+              name: values[0],
+              type: values[1] as any,
+              chapter: values[2],
+              city: values[3],
+              country: values[4],
+              topics: values[5].split(';').map(t => t.trim()),
+              formats: values[6].split(';').map(t => t.trim()),
+              languages: values[7].split(';').map(t => t.trim()),
+              fee: values[8] as any,
+              bio: values[9],
+              photoUrl: values[10],
+              contact: { email: values[11], phone: values[12] },
+              links: { linkedin: values[13], website: values[14], video: values[15] },
+              rating: { avg: 0, count: 0 },
+              reviews: [],
+              insights: [],
+              eventHistory: [],
+              lastVerified: new Date().toISOString().slice(0,10),
+            };
+            return newSpeaker;
+          });
+          setSpeakers([...speakers, ...newSpeakers]);
+        }
+      };
+      reader.readAsText(e.target.files[0]);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-['Inter',system-ui,_-apple-system]">
       <header className="text-white shadow-lg" style={{ background: EO.navy }}>
@@ -248,6 +348,49 @@ export default function App() {
                     Welcome to the EO APAC Speaker Directory, your curated gateway to the region's most inspiring minds. Explore a diverse roster of peer-vetted EO members and industry-leading professionals, ready to elevate your next event. Dive into detailed profiles and transparent ratings to find the perfect voice to captivate your audience.
                 </p>
                </div>
+            </div>
+
+            <div className="my-8">
+              <h3 className="text-lg font-semibold">✨ AI Speaker Matchmaker</h3>
+              <p className="mt-1 text-sm text-slate-600">Describe your event and we'll suggest the top 3 speakers.</p>
+              <textarea
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
+                rows={3}
+                placeholder="e.g., We are looking for a speaker for our annual leadership retreat. The audience is comprised of 50 CEOs from the tech industry. The desired topic is 'The Future of AI in Business'."
+              />
+              <button
+                type="button"
+                onClick={findMatchingSpeakers}
+                className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700"
+              >
+                Find Matching Speakers
+              </button>
+              {matchingSpeakers.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-semibold">Recommended Speakers:</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+                    {matchingSpeakers.map(sp => (
+                      <article key={sp.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
+                        <div className="relative h-40" style={{ backgroundImage: `url(${sp.photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/10"></div>
+                            <div className="absolute bottom-0 left-0 p-4">
+                                <h3 className="text-lg font-bold text-white tracking-tight">{sp.name}</h3>
+                                <p className="text-xs text-white/80">{sp.chapter !== "—" ? sp.chapter : `${sp.city}, ${sp.country}`}</p>
+                            </div>
+                        </div>
+                        <div className="p-5 flex flex-col flex-1">
+                            <p className="mt-3 text-sm text-slate-600 leading-relaxed line-clamp-2 flex-grow-0">{sp.bio}</p>
+                            <div className="mt-auto pt-5 flex items-center justify-between">
+                                <button className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors" onClick={() => setOpenId(sp.id)}>View Profile</button>
+                            </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="mb-6 flex flex-col md:flex-row items-stretch md:items-end gap-3 flex-wrap">
               <div className="flex-1 min-w-[220px]">
@@ -393,6 +536,16 @@ export default function App() {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <h3 className="text-lg font-semibold">Bulk Upload Speakers</h3>
+                    <div className="mt-4">
+                        <a href="/speaker_upload_template.csv" download className="text-sm text-indigo-600 hover:underline">Download CSV Template</a>
+                        <div className="mt-2">
+                            <input type="file" accept=".csv" onChange={handleCsvUpload} className="text-sm" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                     <h3 className="text-lg font-semibold">Manage Speakers</h3>
                     <div className="mt-4 space-y-3">
                         {speakers.map(sp => (<div key={sp.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50"><div className="flex items-center gap-3"><Avatar name={sp.name} src={sp.photoUrl} size={40}/><div><div className="font-semibold text-slate-900">{sp.name}</div><div className="text-xs text-slate-600">{sp.chapter}</div></div></div><div className="flex gap-2"><button onClick={() => setEditing(JSON.parse(JSON.stringify(sp)))} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">Edit</button><button onClick={() => handleDeleteSpeaker(sp.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">Delete</button></div></div>))}
@@ -415,7 +568,7 @@ export default function App() {
       </footer>
       
 {/* All Modals */}
-      <Modal open={!!openId} onClose={()=>{ setOpenId(null); }}>
+      <Modal open={!!openId} onClose={()=>{ setOpenId(null); setEventIdeas(""); }}>
         {current ? (
           <div>
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -442,6 +595,7 @@ export default function App() {
             <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
               <div><strong>Email:</strong> <a href={`mailto:${current.contact.email}`} className="text-indigo-600">{current.contact.email}</a></div>
               <div><strong>Phone:</strong> {current.contact.phone}</div>
+              <button onClick={() => draftBookingEmail(current)} className="mt-2 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm">Draft Booking Email</button>
             </div>
             
             <div className="mt-5 grid md:grid-cols-3 gap-6">
@@ -472,6 +626,19 @@ export default function App() {
                     <textarea name="comment" placeholder="Comment" required rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
                     <button type="submit" className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Submit Review</button>
                   </form>
+                </section>
+                <section>
+                  <h4 className="font-semibold">✨ AI Event Planner</h4>
+                  <button
+                    type="button"
+                    onClick={() => generateEventIdeas(current)}
+                    className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    Generate Event Ideas
+                  </button>
+                  {eventIdeas && (
+                    <div className="mt-4 whitespace-pre-wrap text-sm">{eventIdeas}</div>
+                  )}
                 </section>
               </div>
               <aside className="space-y-3">
