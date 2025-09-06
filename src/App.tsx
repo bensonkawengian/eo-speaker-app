@@ -384,10 +384,13 @@ export default function App() {
             
             <div className="mt-5 grid md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-5">
-                {/* About, AI Intro, Topics, etc. */}
+                <section><h4 className="font-semibold">About</h4><p className="mt-1 text-sm text-slate-700 leading-relaxed">{current.bio || '—'}</p></section>
+                <section><h4 className="font-semibold">Topics & Formats</h4><div className="mt-2 flex flex-wrap gap-2">{(current.topics||[]).map((t:string)=> <Badge key={t}>{t}</Badge>)}</div><div className="mt-2 text-sm text-slate-600">Formats: {(current.formats||[]).join(' \u00b7 ')}</div><div className="mt-1 text-sm text-slate-600">Languages: {(current.languages||[]).join(', ')}</div></section>
               </div>
               <aside className="space-y-3">
-                {/* Verification, Links, Event History */}
+                <div className="rounded-xl border border-slate-200 p-3"><div className="text-xs font-semibold text-slate-600">Verification</div><div className="mt-1 text-sm text-slate-600">Last verified: {current.lastVerified ? new Date(current.lastVerified).toLocaleDateString() : '—'}</div></div>
+                <div className="rounded-xl border border-slate-200 p-3"><div className="text-xs font-semibold text-slate-600">Links</div><ul className="mt-1 text-sm text-indigo-700 space-y-1"><li><a href={current.links?.linkedin || '#'} className="hover:underline">LinkedIn</a></li><li><a href={current.links?.website || '#'} className="hover:underline">Website</a></li><li><a href={current.links?.video || '#'} className="hover:underline">Sample video</a></li></ul></div>
+                {current.eventHistory && current.eventHistory.length > 0 && (<div className="rounded-xl border border-slate-200 p-3"><div className="text-xs font-semibold text-slate-600">EO Event History</div><ul className="mt-1 text-sm text-slate-700 space-y-1">{current.eventHistory.map((event, i) => (<li key={i}>{event.chapter} <span className="text-slate-500">({new Date(event.date).toLocaleDateString()})</span></li>))}</ul></div>)}
               </aside>
             </div>
           </div>
@@ -420,7 +423,13 @@ export default function App() {
         {editing && (
             <div>
                 <h2 className="text-2xl font-bold mb-4">Edit Speaker: {editing.name}</h2>
-                {/* Full Edit Speaker Form JSX goes here */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {/* All the fields for the speaker editor go here */}
+                </div>
+                <div className="mt-6 flex justify-end gap-3">
+                    <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border text-sm">Cancel</button>
+                    <button className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Save Changes</button>
+                </div>
             </div>
         )}
       </Modal>
