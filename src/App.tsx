@@ -99,21 +99,6 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
-async function geminiApiCall(prompt: string): Promise<string> {
-  console.log(`Making a mock API call with prompt: ${prompt}`);
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  if (prompt.includes("topics")) {
-    return "Leadership, Team Building, Scaling, Fundraising";
-  }
-  if (prompt.includes("match")) {
-    return "sp-1, sp-2, sp-3";
-  }
-  if (prompt.includes("event ideas")) {
-    return "Event Title 1: Scaling New Heights\\nEvent Description 1: An event about scaling your business.\\nQ&A 1: What is the biggest challenge in scaling?\\n---\\nEvent Title 2: The Future of Work\\nEvent Description 2: A discussion on the future of work.\\nQ&A 2: How will AI change the workplace?\\n---\\nEvent Title 3: Leadership in the 21st Century\\nEvent Description 3: A talk on modern leadership.\\nQ&A 3: What is the most important quality of a leader?";
-  }
-  return "Sorry, I can't help with that.";
-}
-
 // =========================
 // Main App Component
 // =========================
@@ -130,11 +115,13 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [nominationBio, setNominationBio] = useState("");
   const [topicSuggestion, setTopicSuggestion] = useState({ loading: false, error: "" });
-  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
+  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
   const [pending, setPending] = useState<Nomination[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [eventDescription, setEventDescription] = useState("");
   const [matchingSpeakers, setMatchingSpeakers] = useState<Speaker[]>([]);
   const [eventIdeas, setEventIdeas] = useState<string>("");
+  const [profileVersion, setProfileVersion] = useState(0);
   
   const filtered = useMemo(()=>{
     const q = query.trim().toLowerCase();
@@ -166,9 +153,14 @@ export default function App() {
   }
 
   async function generateEventIdeas(speaker: Speaker) {
-    const prompt = `Based on the speaker profile of ${speaker.name} who is an expert in ${speaker.topics.join(', ')}, generate three potential event titles, a short event description, and three sample Q&A questions.`;
-    const result = await geminiApiCall(prompt);
-    setEventIdeas(result);
+    const response = await fetch('/api/gemini/generate-event-ideas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ speaker }),
+    });
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error);
+    setEventIdeas(data.ideas);
   }
 
   function draftBookingEmail(speaker: Speaker) {
@@ -190,9 +182,14 @@ Best regards,
   async function findMatchingSpeakers() {
     if (!eventDescription) return;
     const speakerSummary = speakers.map(s => `id: ${s.id}, name: ${s.name}, topics: ${s.topics.join(', ')}`).join('\\n');
-    const prompt = `Based on the event description: "${eventDescription}", and the following speaker list:\\n${speakerSummary}\\nReturn only the comma-separated IDs of the top 3 matching speakers.`;
-    const result = await geminiApiCall(prompt);
-    const ids = result.split(',').map(id => id.trim());
+    const response = await fetch('/api/gemini/find-matching-speakers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventDescription, speakerSummary }),
+    });
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error);
+    const ids = data.ids;
     setMatchingSpeakers(speakers.filter(s => ids.includes(s.id)));
   }
 
@@ -200,21 +197,45 @@ Best regards,
     if (!nominationBio) return;
     setTopicSuggestion({ loading: true, error: "" });
     try {
-      const prompt = `Based on the following bio, suggest 3-5 relevant topics as a comma-separated string: ${nominationBio}`;
-      const result = await geminiApiCall(prompt);
-      setNom(prev => ({ ...prev, topics: result }));
+      const response = await fetch('/api/gemini/suggest-topics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: nominationBio }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error);
+      setNom(prev => ({ ...prev, topics: data.ideas.join(', ') }));
     } catch (error) {
       setTopicSuggestion({ loading: false, error: "Failed to suggest topics." });
     } finally {
       setTopicSuggestion({ loading: false, error: "" });
     }
   }
-  function submitNomination(e: React.FormEvent) { e.preventDefault(); }
+  async function submitNomination(e: React.FormEvent) {
+    e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      // Mock API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newNomination = { ...nom, id: `nom-${Math.random().toString(36).substr(2, 9)}` };
+      setPending([...pending, newNomination]);
+      alert("Nomination submitted successfully!");
+      // Reset form
+      setNom({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
+      setNominationBio("");
+    } catch (error) {
+      alert("Failed to submit nomination.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
   function approveNom(n: Nomination) { /* Placeholder */ }
   function handleUpdateSpeaker() {
     if (!editing) return;
     setSpeakers(speakers.map(s => s.id === editing.id ? editing : s));
     setEditing(null);
+    setProfileVersion(v => v + 1);
   }
 
   function handleDeleteSpeaker(speakerId: string) {
@@ -259,15 +280,20 @@ Best regards,
     const form = e.currentTarget;
     const formData = new FormData(form);
     const by = formData.get('by') as string;
-    const date = formData.get('date') as string;
+    const rater_chapter_id = formData.get('rater_chapter_id') as string;
     const rating = Number(formData.get('rating'));
     const comment = formData.get('comment') as string;
+    const event_name = formData.get('event_name') as string || undefined;
+    const event_date = formData.get('event_date') as string || undefined;
+    const format = formData.get('format') as 'talk' | 'workshop' | 'panel' || undefined;
 
-    if (!by || !date || !rating || !comment) return;
+    if (!by || !rater_chapter_id || !rating || !comment) return;
+
+    const newReview = { by, date: new Date().toISOString(), rating, comment, rater_chapter_id, event_name, event_date, format };
 
     setSpeakers(speakers.map(sp => {
       if (sp.id === speakerId) {
-        const newReviews = [{ by, date, rating, comment }, ...sp.reviews];
+        const newReviews = [newReview, ...sp.reviews];
         const newRatingCount = newReviews.length;
         const newRatingAvg = newReviews.reduce((sum, r) => sum + r.rating, 0) / newRatingCount;
         return { ...sp, reviews: newReviews, rating: { avg: newRatingAvg, count: newRatingCount } };
@@ -478,13 +504,13 @@ Best regards,
               </div>
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label className="text-xs font-semibold text-slate-600">Speaker's Name</label><input name="name" required value={nom.name} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="text-xs font-semibold text-slate-600">Speaker's Chapter/Company (optional)</label><input name="chapter" value={nom.chapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="text-xs font-semibold text-slate-600">Your Name (Referrer)</label><input name="referrerName" required value={nom.referrerName} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="text-xs font-semibold text-slate-600">Your EO Chapter / Organization (Referrer)</label><input name="referrerChapter" required value={nom.referrerChapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div><label className="text-xs font-semibold text-slate-600">Type</label><select name="type" value={nom.type} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
                 <div><label className="text-xs font-semibold text-slate-600">Fee</label><select name="fee" value={nom.fee} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
-                <div><label className="text-xs font-semibold text-slate-600">Full name</label><input name="name" required value={nom.name} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div><label className="text-xs font-semibold text-slate-600">Email</label><input name="email" required type="email" value={nom.email} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div><label className="text-xs font-semibold text-slate-600">Your Name (Referrer)</label><input name="referrerName" required value={nom.referrerName} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div><label className="text-xs font-semibold text-slate-600">Your EO Chapter</label><input name="referrerChapter" required value={nom.referrerChapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Chapter / Company (optional)</label><input name="chapter" value={nom.chapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input name="topics" value={nom.topics} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Formats (e.g., Talk, Workshop)</label><input name="formats" value={nom.formats} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
 
@@ -501,7 +527,7 @@ Best regards,
                   </div>
                 )}
               </div>
-              <div className="mt-4 flex items-center gap-3"><button type="submit" className="px-4 py-2 rounded-lg text-white text-sm" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>Submit</button></div>
+              <div className="mt-4 flex items-center gap-3"><button type="submit" disabled={isSubmitting} className="px-4 py-2 rounded-lg text-white text-sm disabled:opacity-50" style={{ background: `linear-gradient(90deg, ${EO.blue}, ${EO.orange})` }}>{isSubmitting ? "Submitting..." : "Submit"}</button></div>
             </form>
             <aside className="rounded-2xl p-6" style={{ background: `${EO.blue}0D`, border: `1px solid ${EO.blue}33` }}>
               <h3 className="font-semibold" style={{ color: EO.navy }}>Prefer email?</h3>
@@ -529,9 +555,19 @@ Best regards,
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mt-6">
                   <h3 className="text-lg font-semibold">Pending Nominations</h3>
+                  <div className="mt-4 flex items-center gap-4">
+                    <select className="text-sm border-slate-200 rounded-lg">
+                      <option>Sort by Newest</option>
+                      <option>Sort by Oldest</option>
+                    </select>
+                    <select className="text-sm border-slate-200 rounded-lg">
+                      <option>All Dates</option>
+                      <option>Last 30 days</option>
+                    </select>
+                  </div>
                   {pending.length === 0 && <div className="mt-2 text-sm text-slate-500">No new nominations to review.</div>}
                   <div className="mt-4 space-y-4">
-                    {pending.map(n=> (<div key={n.id} className="p-4 rounded-xl border bg-slate-50/70 shadow-sm"><div className="flex items-start justify-between"><div className="flex items-start gap-3"><Avatar name={n.name} size={40} /><div><div className="font-semibold text-slate-900">{n.name}</div><div className="text-sm text-slate-600">{n.type} {"\u00b7"} {n.fee}</div><a href={`mailto:${n.email}`} className="text-sm text-indigo-600 hover:underline">{n.email}</a></div></div><div className="text-right flex-shrink-0 ml-4">{(n.fee===FEE.PAID || n.fee===FEE.PRO_PAID) ? (n.rateMin ? (<div className="text-xs text-slate-600">EO rate: <span className="font-medium text-slate-800">{ratePreview({ currency: n.rateCurrency, min: Number(n.rateMin), max: n.rateMax?Number(n.rateMax):undefined, unit: n.rateUnit })}</span></div>) : (<Badge tone="orange">Rate Required</Badge>)) : (<Badge tone="green">No Fee</Badge>)}</div></div><div className="mt-3 border-t border-slate-200 pt-3 space-y-1.5">{n.chapter && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Chapter/Co:</strong> {n.chapter}</div>}{n.topics && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Topics:</strong> {n.topics}</div>}{(n.fee === FEE.PAID || n.fee === FEE.PRO_PAID) && n.rateNotes && (<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Rate Notes:</strong> {n.rateNotes}</div>)}<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Referred by:</strong> {n.referrerName} ({n.referrerChapter})</div></div><div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2"><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" onClick={()=>approveNom(n)}>Approve</button><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors" onClick={()=>setPending(pending.filter(x=>x.id!==n.id))}>Reject</button></div></div>))}
+                    {pending.map(n=> (<div key={n.id} className="p-4 rounded-xl border bg-slate-50/70 shadow-sm"><div className="flex items-start justify-between"><div className="flex items-start gap-3"><Avatar name={n.name} size={40} /><div><div className="font-semibold text-slate-900">{n.name}</div><div className="text-sm text-slate-600">{n.type}</div><a href={`mailto:${n.email}`} className="text-sm text-indigo-600 hover:underline">{n.email}</a></div></div><div className="text-right flex-shrink-0 ml-4"><div className="text-xs text-slate-500">Nominated on {new Date(n.nominated_at).toLocaleDateString()}</div></div></div><div className="mt-3 border-t border-slate-200 pt-3 space-y-1.5">{n.chapter && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Chapter/Co:</strong> {n.chapter}</div>}{n.topics && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Topics:</strong> {n.topics}</div>}{(n.rateMin) && (<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Rate:</strong> {ratePreview({ currency: n.rateCurrency, min: Number(n.rateMin), max: n.rateMax?Number(n.rateMax):undefined, unit: n.rateUnit })}</div>)}{n.rateNotes && (<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Rate Notes:</strong> {n.rateNotes}</div>)}<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Referred by:</strong> {n.referrerName} ({n.referrerChapter})</div></div><div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2"><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" onClick={()=>approveNom(n)}>Approve</button><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors" onClick={()=>setPending(pending.filter(x=>x.id!==n.id))}>Reject</button></div></div>))}
                   </div>
                 </div>
 
@@ -570,7 +606,7 @@ Best regards,
 {/* All Modals */}
       <Modal open={!!openId} onClose={()=>{ setOpenId(null); setEventIdeas(""); }}>
         {current ? (
-          <div>
+          <div key={profileVersion}>
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div className="flex items-start gap-4">
                 <Avatar name={current.name} size={64} src={current.photoUrl} />
@@ -602,6 +638,14 @@ Best regards,
               <div className="md:col-span-2 space-y-5">
                 <section><h4 className="font-semibold">About</h4><p className="mt-1 text-sm text-slate-700 leading-relaxed">{current.bio || '—'}</p></section>
                 <section><h4 className="font-semibold">Topics & Formats</h4><div className="mt-2 flex flex-wrap gap-2">{(current.topics||[]).map((t:string)=> <Badge key={t}>{t}</Badge>)}</div><div className="mt-2 text-sm text-slate-600">Formats: {(current.formats||[]).join(' \u00b7 ')}</div><div className="mt-1 text-sm text-slate-600">Languages: {(current.languages||[]).join(', ')}</div></section>
+                {(current.fee_min || current.fee_max) && (
+                  <section>
+                    <h4 className="font-semibold">Rates</h4>
+                    <p className="text-sm">{ratePreview({ currency: current.currency || 'USD', min: current.fee_min || 0, max: current.fee_max || undefined })}</p>
+                    {current.has_eo_special_rate && <Badge tone="green">EO Special Rate</Badge>}
+                    {current.eo_rate_note && <p className="text-xs text-slate-500 mt-1">{current.eo_rate_note}</p>}
+                  </section>
+                )}
                 <section>
                   <h4 className="font-semibold">Reviews</h4>
                   <div className="mt-2 space-y-3">
@@ -621,9 +665,20 @@ Best regards,
                   <h4 className="font-semibold">Rate this Speaker</h4>
                   <form onSubmit={e => submitReview(e, current.id)} className="mt-2 space-y-2">
                     <input type="text" name="by" placeholder="Your Name" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
-                    <input type="date" name="date" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <select name="rater_chapter_id" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm">
+                      <option value="">Your EO Chapter</option>
+                      {speakers.map(s => s.chapter).filter((v, i, a) => a.indexOf(v) === i && v !== "—").map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                     <input type="number" name="rating" min="1" max="5" placeholder="Rating (1-5)" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
                     <textarea name="comment" placeholder="Comment" required rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <input type="text" name="event_name" placeholder="Where did you see this speaker? (optional)" className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <input type="date" name="event_date" className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <select name="format" className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm">
+                      <option value="">Format (optional)</option>
+                      <option value="talk">Talk</option>
+                      <option value="workshop">Workshop</option>
+                      <option value="panel">Panel</option>
+                    </select>
                     <button type="submit" className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Submit Review</button>
                   </form>
                 </section>
@@ -684,7 +739,24 @@ Best regards,
                     <div><label className="block text-xs font-semibold text-slate-600">City</label><input value={editing.city} onChange={e=>setEditing({...editing, city: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                     <div><label className="block text-xs font-semibold text-slate-600">Country</label><input value={editing.country} onChange={e=>setEditing({...editing, country: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                     <div><label className="block text-xs font-semibold text-slate-600">Type</label><select value={editing.type} onChange={e=>setEditing({...editing, type: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
-                    <div><label className="block text-xs font-semibold text-slate-600">Fee</label><select value={editing.fee} onChange={e=>setEditing({...editing, fee: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 mt-4">
+                    <h4 className="text-sm font-semibold text-slate-800 mb-2">Fees</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div><label className="block text-xs font-semibold text-slate-600">Min Fee (cents)</label><input type="number" value={editing.fee_min} onChange={e=>setEditing({...editing, fee_min: Number(e.target.value)})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                      <div><label className="block text-xs font-semibold text-slate-600">Max Fee (cents)</label><input type="number" value={editing.fee_max} onChange={e=>setEditing({...editing, fee_max: Number(e.target.value)})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                      <div><label className="block text-xs font-semibold text-slate-600">Currency</label><input value={editing.currency} onChange={e=>setEditing({...editing, currency: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={editing.has_eo_special_rate} onChange={e=>setEditing({...editing, has_eo_special_rate: e.target.checked})} />
+                        <span>Has EO Special Rate</span>
+                      </label>
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-xs font-semibold text-slate-600">EO Rate Note</label>
+                      <input value={editing.eo_rate_note} onChange={e=>setEditing({...editing, eo_rate_note: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" />
+                    </div>
                   </div>
                   <div><label className="block text-xs font-semibold text-slate-600">Bio</label><textarea value={editing.bio} onChange={e=>setEditing({...editing, bio: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" rows={4} /></div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
