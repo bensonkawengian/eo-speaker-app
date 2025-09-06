@@ -26,12 +26,14 @@ export type Flags = {
   proRateBanner: boolean;
   adminGate: boolean;
   killSwitch: boolean;
+  aiFeatures: boolean;
 };
 export const flags: Flags = {
   insightsTab: true,
   proRateBanner: true,
   adminGate: true,
   killSwitch: false,
+  aiFeatures: false,
 };
 
 // =========================
@@ -99,6 +101,27 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
+const CHAPTER_OPTIONS = [
+  "EO - Non APAC & Others",
+  "EO Malaysia",
+  "EO Philippines",
+  "EO Philippines South",
+  "EO Singapore",
+  "EO Vietnam",
+  "EO APAC Bridge",
+  "EO Bangkok Metropolitan",
+  "EO Indonesia",
+  "EO Indonesia East",
+  "EO Thailand",
+  "EO APAC Platinum One Bridge",
+  "EO Adelaide",
+  "EO Melbourne",
+  "EO New Zealand",
+  "EO Perth",
+  "EO Queensland",
+  "EO Sydney",
+];
+
 // =========================
 // Main App Component
 // =========================
@@ -115,7 +138,7 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [nominationBio, setNominationBio] = useState("");
   const [topicSuggestion, setTopicSuggestion] = useState({ loading: false, error: "" });
-  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
+  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
   const [pending, setPending] = useState<Nomination[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [eventDescription, setEventDescription] = useState("");
@@ -222,7 +245,7 @@ Best regards,
       setPending([...pending, newNomination]);
       alert("Nomination submitted successfully!");
       // Reset form
-      setNom({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
+      setNom({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
       setNominationBio("");
     } catch (error) {
       alert("Failed to submit nomination.");
@@ -230,7 +253,39 @@ Best regards,
       setIsSubmitting(false);
     }
   }
-  function approveNom(n: Nomination) { /* Placeholder */ }
+  function approveNom(n: Nomination) {
+    // TODO: A future improvement would be to open the speaker editor modal
+    // for the admin to fill in the missing details before creating the speaker.
+    const newSpeaker: Speaker = {
+      id: `sp-${Math.random().toString(36).substr(2, 9)}`,
+      type: n.type,
+      fee: n.fee,
+      name: n.name,
+      chapter: n.chapter,
+      city: "",
+      country: "",
+      topics: n.topics.split(',').map(t => t.trim()),
+      formats: n.formats.split(',').map(f => f.trim()),
+      languages: [],
+      rating: { avg: 0, count: 0 },
+      lastVerified: new Date().toISOString().slice(0, 10),
+      bio: "",
+      links: { linkedin: "", website: "", video: "" },
+      contact: { email: n.email, phone: "" },
+      reviews: [],
+      insights: [],
+      eventHistory: [],
+      photoUrl: "",
+      fee_min: Number(n.rateMin) || undefined,
+      fee_max: Number(n.rateMax) || undefined,
+      currency: n.rateCurrency,
+      has_eo_special_rate: false,
+      eo_rate_note: n.rateNotes,
+    };
+    setSpeakers(prev => [...prev, newSpeaker]);
+    setPending(prev => prev.filter(p => p.id !== n.id));
+    alert(`${n.name} has been approved and added to the directory.`);
+  }
   function handleUpdateSpeaker() {
     if (!editing) return;
     setSpeakers(speakers.map(s => s.id === editing.id ? editing : s));
@@ -376,48 +431,50 @@ Best regards,
                </div>
             </div>
 
-            <div className="my-8">
-              <h3 className="text-lg font-semibold">✨ AI Speaker Matchmaker</h3>
-              <p className="mt-1 text-sm text-slate-600">Describe your event and we'll suggest the top 3 speakers.</p>
-              <textarea
-                value={eventDescription}
-                onChange={(e) => setEventDescription(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
-                rows={3}
-                placeholder="e.g., We are looking for a speaker for our annual leadership retreat. The audience is comprised of 50 CEOs from the tech industry. The desired topic is 'The Future of AI in Business'."
-              />
-              <button
-                type="button"
-                onClick={findMatchingSpeakers}
-                className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700"
-              >
-                Find Matching Speakers
-              </button>
-              {matchingSpeakers.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="font-semibold">Recommended Speakers:</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
-                    {matchingSpeakers.map(sp => (
-                      <article key={sp.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
-                        <div className="relative h-40" style={{ backgroundImage: `url(${sp.photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/10"></div>
-                            <div className="absolute bottom-0 left-0 p-4">
-                                <h3 className="text-lg font-bold text-white tracking-tight">{sp.name}</h3>
-                                <p className="text-xs text-white/80">{sp.chapter !== "—" ? sp.chapter : `${sp.city}, ${sp.country}`}</p>
-                            </div>
-                        </div>
-                        <div className="p-5 flex flex-col flex-1">
-                            <p className="mt-3 text-sm text-slate-600 leading-relaxed line-clamp-2 flex-grow-0">{sp.bio}</p>
-                            <div className="mt-auto pt-5 flex items-center justify-between">
-                                <button className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors" onClick={() => setOpenId(sp.id)}>View Profile</button>
-                            </div>
-                        </div>
-                      </article>
-                    ))}
+            {flags.aiFeatures && (
+              <div className="my-8">
+                <h3 className="text-lg font-semibold">✨ AI Speaker Matchmaker</h3>
+                <p className="mt-1 text-sm text-slate-600">Describe your event and we'll suggest the top 3 speakers.</p>
+                <textarea
+                  value={eventDescription}
+                  onChange={(e) => setEventDescription(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
+                  rows={3}
+                  placeholder="e.g., We are looking for a speaker for our annual leadership retreat. The audience is comprised of 50 CEOs from the tech industry. The desired topic is 'The Future of AI in Business'."
+                />
+                <button
+                  type="button"
+                  onClick={findMatchingSpeakers}
+                  className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Find Matching Speakers
+                </button>
+                {matchingSpeakers.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="font-semibold">Recommended Speakers:</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-2">
+                      {matchingSpeakers.map(sp => (
+                        <article key={sp.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
+                          <div className="relative h-40" style={{ backgroundImage: `url(${sp.photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/10"></div>
+                              <div className="absolute bottom-0 left-0 p-4">
+                                  <h3 className="text-lg font-bold text-white tracking-tight">{sp.name}</h3>
+                                  <p className="text-xs text-white/80">{sp.chapter !== "—" ? sp.chapter : `${sp.city}, ${sp.country}`}</p>
+                              </div>
+                          </div>
+                          <div className="p-5 flex flex-col flex-1">
+                              <p className="mt-3 text-sm text-slate-600 leading-relaxed line-clamp-2 flex-grow-0">{sp.bio}</p>
+                              <div className="mt-auto pt-5 flex items-center justify-between">
+                                  <button className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors" onClick={() => setOpenId(sp.id)}>View Profile</button>
+                              </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
             <div className="mb-6 flex flex-col md:flex-row items-stretch md:items-end gap-3 flex-wrap">
               <div className="flex-1 min-w-[220px]">
                 <label className="text-xs font-semibold text-slate-600">Search</label>
@@ -482,26 +539,28 @@ Best regards,
               <h2 className="text-lg font-semibold">Nominate a Speaker</h2>
               <p className="mt-1 text-sm text-slate-600">Anyone can nominate. Professional speakers must disclose EO rates.</p>
 
-              <div className="my-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
-                <h3 className="font-semibold text-slate-800">✨ AI Topic Suggester</h3>
-                <p className="mt-1 text-sm text-slate-600">Paste the speaker's bio or LinkedIn summary below to get AI-suggested topics.</p>
-                <textarea
-                  value={nominationBio}
-                  onChange={(e) => setNominationBio(e.target.value)}
-                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
-                  rows={4}
-                  placeholder="e.g., Jane Doe is an award-winning entrepreneur who..."
-                />
-                <button
-                  type="button"
-                  onClick={suggestTopics}
-                  disabled={topicSuggestion.loading}
-                  className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400"
-                >
-                  {topicSuggestion.loading ? "Suggesting..." : "✨ Suggest Topics"}
-                </button>
-                {topicSuggestion.error && <p className="mt-2 text-sm text-red-600">{topicSuggestion.error}</p>}
-              </div>
+              {flags.aiFeatures && (
+                <div className="my-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+                  <h3 className="font-semibold text-slate-800">✨ AI Topic Suggester</h3>
+                  <p className="mt-1 text-sm text-slate-600">Paste the speaker's bio or LinkedIn summary below to get AI-suggested topics.</p>
+                  <textarea
+                    value={nominationBio}
+                    onChange={(e) => setNominationBio(e.target.value)}
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm"
+                    rows={4}
+                    placeholder="e.g., Jane Doe is an award-winning entrepreneur who..."
+                  />
+                  <button
+                    type="button"
+                    onClick={suggestTopics}
+                    disabled={topicSuggestion.loading}
+                    className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400"
+                  >
+                    {topicSuggestion.loading ? "Suggesting..." : "✨ Suggest Topics"}
+                  </button>
+                  {topicSuggestion.error && <p className="mt-2 text-sm text-red-600">{topicSuggestion.error}</p>}
+                </div>
+              )}
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><label className="text-xs font-semibold text-slate-600">Speaker's Name</label><input name="name" required value={nom.name} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
@@ -646,6 +705,20 @@ Best regards,
                     {current.eo_rate_note && <p className="text-xs text-slate-500 mt-1">{current.eo_rate_note}</p>}
                   </section>
                 )}
+                {flags.insightsTab && current.insights && current.insights.length > 0 && (
+                  <section>
+                    <h4 className="font-semibold">Insights</h4>
+                    <div className="mt-2 space-y-3">
+                      {current.insights.map((insight, i) => (
+                        <div key={i} className="bg-slate-50 p-3 rounded-lg">
+                          <a href={insight.link} target="_blank" rel="noopener noreferrer" className="font-semibold text-sm text-indigo-700 hover:underline">{insight.title}</a>
+                          <p className="text-sm mt-1 text-slate-600">{insight.summary}</p>
+                          <span className="text-xs text-slate-500">{new Date(insight.date).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
                 <section>
                   <h4 className="font-semibold">Reviews</h4>
                   <div className="mt-2 space-y-3">
@@ -657,6 +730,11 @@ Best regards,
                         </div>
                         <StarRow value={review.rating} size={14} />
                         <p className="text-sm mt-1">{review.comment}</p>
+                        {(review.event_name || review.event_date || review.format) && (
+                          <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-500">
+                            Seen at: {review.event_name} ({review.format}) on {new Date(review.event_date || '').toLocaleDateString()}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -667,7 +745,7 @@ Best regards,
                     <input type="text" name="by" placeholder="Your Name" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
                     <select name="rater_chapter_id" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm">
                       <option value="">Your EO Chapter</option>
-                      {speakers.map(s => s.chapter).filter((v, i, a) => a.indexOf(v) === i && v !== "—").map(c => <option key={c} value={c}>{c}</option>)}
+                      {CHAPTER_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <input type="number" name="rating" min="1" max="5" placeholder="Rating (1-5)" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
                     <textarea name="comment" placeholder="Comment" required rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
@@ -682,19 +760,21 @@ Best regards,
                     <button type="submit" className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Submit Review</button>
                   </form>
                 </section>
-                <section>
-                  <h4 className="font-semibold">✨ AI Event Planner</h4>
-                  <button
-                    type="button"
-                    onClick={() => generateEventIdeas(current)}
-                    className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    Generate Event Ideas
-                  </button>
-                  {eventIdeas && (
-                    <div className="mt-4 whitespace-pre-wrap text-sm">{eventIdeas}</div>
-                  )}
-                </section>
+                {flags.aiFeatures && (
+                  <section>
+                    <h4 className="font-semibold">✨ AI Event Planner</h4>
+                    <button
+                      type="button"
+                      onClick={() => generateEventIdeas(current)}
+                      className="mt-2 px-4 py-2 rounded-lg text-white text-sm bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      Generate Event Ideas
+                    </button>
+                    {eventIdeas && (
+                      <div className="mt-4 whitespace-pre-wrap text-sm">{eventIdeas}</div>
+                    )}
+                  </section>
+                )}
               </div>
               <aside className="space-y-3">
                 <div className="rounded-xl border border-slate-200 p-3"><div className="text-xs font-semibold text-slate-600">Verification</div><div className="mt-1 text-sm text-slate-600">Last verified: {current.lastVerified ? new Date(current.lastVerified).toLocaleDateString() : '—'}</div></div>
