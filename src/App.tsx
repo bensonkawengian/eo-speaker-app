@@ -115,7 +115,7 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [nominationBio, setNominationBio] = useState("");
   const [topicSuggestion, setTopicSuggestion] = useState({ loading: false, error: "" });
-  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
+  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
   const [pending, setPending] = useState<Nomination[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [eventDescription, setEventDescription] = useState("");
@@ -222,7 +222,7 @@ Best regards,
       setPending([...pending, newNomination]);
       alert("Nomination submitted successfully!");
       // Reset form
-      setNom({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
+      setNom({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", nominated_at: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
       setNominationBio("");
     } catch (error) {
       alert("Failed to submit nomination.");

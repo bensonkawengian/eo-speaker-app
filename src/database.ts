@@ -1,10 +1,11 @@
-import { SPEAKER_TYPE, Speaker } from './types';
+import { SPEAKER_TYPE, FEE, Speaker } from './types';
 
 // The SEED_DATA is now explicitly typed as an array of Speaker
 export const SEED_DATA: Speaker[] = [
   {
     id: "sp-1",
     type: SPEAKER_TYPE.MEMBER,
+    fee: FEE.NO_FEE,
     name: "Aisha Tan",
     chapter: "EO Singapore",
     city: "Singapore",
@@ -33,6 +34,7 @@ export const SEED_DATA: Speaker[] = [
   {
     id: "sp-11",
     type: SPEAKER_TYPE.MEMBER,
+    fee: FEE.PAID,
     name: "Ben Carter",
     chapter: "EO Melbourne",
     city: "Melbourne",
@@ -58,6 +60,7 @@ export const SEED_DATA: Speaker[] = [
   {
     id: "sp-2",
     type: SPEAKER_TYPE.PRO,
+    fee: FEE.PRO_PAID,
     name: "Dr. Kenji Tanaka",
     chapter: "—",
     city: "Tokyo",
@@ -82,6 +85,7 @@ export const SEED_DATA: Speaker[] = [
   {
     id: "sp-3",
     type: SPEAKER_TYPE.MEMBER,
+    fee: FEE.NO_FEE,
     name: "Isabella Rossi",
     chapter: "EO Sydney",
     city: "Sydney",
@@ -102,6 +106,7 @@ export const SEED_DATA: Speaker[] = [
   {
     id: "sp-4",
     type: SPEAKER_TYPE.PRO,
+    fee: FEE.PRO_PAID,
     name: "Raj Patel",
     chapter: "—",
     city: "Mumbai",
@@ -125,6 +130,7 @@ export const SEED_DATA: Speaker[] = [
   {
     id: "sp-5",
     type: SPEAKER_TYPE.MEMBER,
+    fee: FEE.NO_FEE,
     name: "Chloe Chen",
     chapter: "EO Hong Kong",
     city: "Hong Kong",
@@ -145,6 +151,7 @@ export const SEED_DATA: Speaker[] = [
   {
     id: "sp-6",
     type: SPEAKER_TYPE.PRO,
+    fee: FEE.PRO_PAID,
     name: "Dr. Emily Carter",
     chapter: "—",
     city: "Auckland",
