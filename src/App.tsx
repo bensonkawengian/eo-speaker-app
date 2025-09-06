@@ -108,6 +108,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"All"|"Member"|"Pro">("All");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showContact, setShowContact] = useState(false);
   const current = useMemo(()=> speakers.find(s=>s.id===openId) || null, [openId, speakers]);
   const [admin, setAdmin] = useState(false);
   const [editing, setEditing] = useState<Speaker | null>(null);
@@ -150,6 +151,11 @@ export default function App() {
   function suggestTopics() { /* Placeholder for Gemini API call */ }
   function submitNomination(e: React.FormEvent) { e.preventDefault(); }
   function approveNom(n: Nomination) { /* Placeholder */ }
+  function handleUpdateSpeaker() {
+    if (!editing) return;
+    setSpeakers(speakers.map(s => s.id === editing.id ? editing : s));
+    setEditing(null);
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-['Inter',system-ui,_-apple-system]">
@@ -424,11 +430,17 @@ export default function App() {
             <div>
                 <h2 className="text-2xl font-bold mb-4">Edit Speaker: {editing.name}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    {/* All the fields for the speaker editor go here */}
+                <div><label className="block text-xs font-semibold text-slate-600">Type</label><select value={editing.type} onChange={e=>setEditing({...editing, type: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
+                <div><label className="block text-xs font-semibold text-slate-600">Fee</label><select value={editing.fee} onChange={e=>setEditing({...editing, fee: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
+                <div><label className="block text-xs font-semibold text-slate-600">Full name</label><input value={editing.name} onChange={e=>setEditing({...editing, name: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="block text-xs font-semibold text-slate-600">Email</label><input type="email" value={editing.contact.email} onChange={e=>setEditing({...editing, contact: {...editing.contact, email: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600">Chapter / Company (optional)</label><input value={editing.chapter} onChange={e=>setEditing({...editing, chapter: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input value={editing.topics.join(', ')} onChange={e=>setEditing({...editing, topics: e.target.value.split(',').map(t=>t.trim())})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600">Bio</label><textarea value={editing.bio} onChange={e=>setEditing({...editing, bio: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" rows={3} /></div>
                 </div>
                 <div className="mt-6 flex justify-end gap-3">
                     <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border text-sm">Cancel</button>
-                    <button className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Save Changes</button>
+                    <button onClick={handleUpdateSpeaker} className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Save Changes</button>
                 </div>
             </div>
         )}
