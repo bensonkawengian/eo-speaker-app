@@ -59,4 +59,6 @@ export type Nomination = {
   rateUnit: string;
   rateNotes: string;
   rateLastUpdated: string;
+  referrerName: string;
+  referrerChapter: string;
 };

@@ -108,7 +108,6 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"All"|"Member"|"Pro">("All");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [showContact, setShowContact] = useState(false);
   const current = useMemo(()=> speakers.find(s=>s.id===openId) || null, [openId, speakers]);
   const [admin, setAdmin] = useState(false);
   const [editing, setEditing] = useState<Speaker | null>(null);
@@ -116,7 +115,7 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [nominationBio, setNominationBio] = useState("");
   const [topicSuggestion, setTopicSuggestion] = useState({ loading: false, error: "" });
-  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10) });
+  const [nom, setNom] = useState<Omit<Nomination, 'id'>>({ type: SPEAKER_TYPE.MEMBER, fee: FEE.NO_FEE, name: "", email: "", chapter: "", topics: "", formats: "", rateCurrency: "USD", rateMin: "", rateMax: "", rateUnit: "per talk", rateNotes: "", rateLastUpdated: new Date().toISOString().slice(0,10), referrerName: "", referrerChapter: "" });
   const [pending, setPending] = useState<Nomination[]>([]);
   
   const filtered = useMemo(()=>{
@@ -155,6 +154,66 @@ export default function App() {
     if (!editing) return;
     setSpeakers(speakers.map(s => s.id === editing.id ? editing : s));
     setEditing(null);
+  }
+
+  function handleDeleteSpeaker(speakerId: string) {
+    if (window.confirm("Are you sure you want to delete this speaker?")) {
+      setSpeakers(speakers.filter(s => s.id !== speakerId));
+    }
+  }
+
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0] && editing) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setEditing({ ...editing, photoUrl: event.target.result as string });
+        }
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  }
+
+  function handleArrayChange<T>(index: number, field: keyof T, value: any, arrayName: keyof Speaker) {
+    if (!editing) return;
+    const newArray = [...(editing[arrayName] as T[])];
+    newArray[index] = { ...newArray[index], [field]: value };
+    setEditing({ ...editing, [arrayName]: newArray });
+  }
+
+  function addArrayItem<T>(arrayName: keyof Speaker, newItem: T) {
+    if (!editing) return;
+    const newArray = [...(editing[arrayName] as T[]), newItem];
+    setEditing({ ...editing, [arrayName]: newArray });
+  }
+
+  function removeArrayItem<T>(index: number, arrayName: keyof Speaker) {
+    if (!editing) return;
+    const newArray = (editing[arrayName] as T[]).filter((_, i) => i !== index);
+    setEditing({ ...editing, [arrayName]: newArray });
+  }
+
+  function submitReview(e: React.FormEvent<HTMLFormElement>, speakerId: string) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const by = formData.get('by') as string;
+    const date = formData.get('date') as string;
+    const rating = Number(formData.get('rating'));
+    const comment = formData.get('comment') as string;
+
+    if (!by || !date || !rating || !comment) return;
+
+    setSpeakers(speakers.map(sp => {
+      if (sp.id === speakerId) {
+        const newReviews = [{ by, date, rating, comment }, ...sp.reviews];
+        const newRatingCount = newReviews.length;
+        const newRatingAvg = newReviews.reduce((sum, r) => sum + r.rating, 0) / newRatingCount;
+        return { ...sp, reviews: newReviews, rating: { avg: newRatingAvg, count: newRatingCount } };
+      }
+      return sp;
+    }));
+    form.reset();
   }
 
   return (
@@ -280,6 +339,8 @@ export default function App() {
                 <div><label className="text-xs font-semibold text-slate-600">Fee</label><select name="fee" value={nom.fee} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
                 <div><label className="text-xs font-semibold text-slate-600">Full name</label><input name="name" required value={nom.name} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div><label className="text-xs font-semibold text-slate-600">Email</label><input name="email" required type="email" value={nom.email} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="text-xs font-semibold text-slate-600">Your Name (Referrer)</label><input name="referrerName" required value={nom.referrerName} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                <div><label className="text-xs font-semibold text-slate-600">Your EO Chapter</label><input name="referrerChapter" required value={nom.referrerChapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Chapter / Company (optional)</label><input name="chapter" value={nom.chapter} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input name="topics" value={nom.topics} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
                 <div className="md:col-span-2"><label className="text-xs font-semibold text-slate-600">Formats (e.g., Talk, Workshop)</label><input name="formats" value={nom.formats} onChange={handleNominationChange} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
@@ -327,14 +388,14 @@ export default function App() {
                   <h3 className="text-lg font-semibold">Pending Nominations</h3>
                   {pending.length === 0 && <div className="mt-2 text-sm text-slate-500">No new nominations to review.</div>}
                   <div className="mt-4 space-y-4">
-                    {pending.map(n=> (<div key={n.id} className="p-4 rounded-xl border bg-slate-50/70 shadow-sm"><div className="flex items-start justify-between"><div className="flex items-start gap-3"><Avatar name={n.name} size={40} /><div><div className="font-semibold text-slate-900">{n.name}</div><div className="text-sm text-slate-600">{n.type} {"\u00b7"} {n.fee}</div><a href={`mailto:${n.email}`} className="text-sm text-indigo-600 hover:underline">{n.email}</a></div></div><div className="text-right flex-shrink-0 ml-4">{(n.fee===FEE.PAID || n.fee===FEE.PRO_PAID) ? (n.rateMin ? (<div className="text-xs text-slate-600">EO rate: <span className="font-medium text-slate-800">{ratePreview({ currency: n.rateCurrency, min: Number(n.rateMin), max: n.rateMax?Number(n.rateMax):undefined, unit: n.rateUnit })}</span></div>) : (<Badge tone="orange">Rate Required</Badge>)) : (<Badge tone="green">No Fee</Badge>)}</div></div><div className="mt-3 border-t border-slate-200 pt-3 space-y-1.5">{n.chapter && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Chapter/Co:</strong> {n.chapter}</div>}{n.topics && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Topics:</strong> {n.topics}</div>}{(n.fee === FEE.PAID || n.fee === FEE.PRO_PAID) && n.rateNotes && (<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Rate Notes:</strong> {n.rateNotes}</div>)}</div><div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2"><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" onClick={()=>approveNom(n)}>Approve</button><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors" onClick={()=>setPending(pending.filter(x=>x.id!==n.id))}>Reject</button></div></div>))}
+                    {pending.map(n=> (<div key={n.id} className="p-4 rounded-xl border bg-slate-50/70 shadow-sm"><div className="flex items-start justify-between"><div className="flex items-start gap-3"><Avatar name={n.name} size={40} /><div><div className="font-semibold text-slate-900">{n.name}</div><div className="text-sm text-slate-600">{n.type} {"\u00b7"} {n.fee}</div><a href={`mailto:${n.email}`} className="text-sm text-indigo-600 hover:underline">{n.email}</a></div></div><div className="text-right flex-shrink-0 ml-4">{(n.fee===FEE.PAID || n.fee===FEE.PRO_PAID) ? (n.rateMin ? (<div className="text-xs text-slate-600">EO rate: <span className="font-medium text-slate-800">{ratePreview({ currency: n.rateCurrency, min: Number(n.rateMin), max: n.rateMax?Number(n.rateMax):undefined, unit: n.rateUnit })}</span></div>) : (<Badge tone="orange">Rate Required</Badge>)) : (<Badge tone="green">No Fee</Badge>)}</div></div><div className="mt-3 border-t border-slate-200 pt-3 space-y-1.5">{n.chapter && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Chapter/Co:</strong> {n.chapter}</div>}{n.topics && <div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Topics:</strong> {n.topics}</div>}{(n.fee === FEE.PAID || n.fee === FEE.PRO_PAID) && n.rateNotes && (<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Rate Notes:</strong> {n.rateNotes}</div>)}<div className="text-sm text-slate-700"><strong className="font-medium text-slate-800 w-28 inline-block">Referred by:</strong> {n.referrerName} ({n.referrerChapter})</div></div><div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2"><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors" onClick={()=>approveNom(n)}>Approve</button><button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors" onClick={()=>setPending(pending.filter(x=>x.id!==n.id))}>Reject</button></div></div>))}
                   </div>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                     <h3 className="text-lg font-semibold">Manage Speakers</h3>
                     <div className="mt-4 space-y-3">
-                        {speakers.map(sp => (<div key={sp.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50"><div className="flex items-center gap-3"><Avatar name={sp.name} src={sp.photoUrl} size={40}/><div><div className="font-semibold text-slate-900">{sp.name}</div><div className="text-xs text-slate-600">{sp.chapter}</div></div></div><button onClick={() => setEditing(JSON.parse(JSON.stringify(sp)))} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">Edit</button></div>))}
+                        {speakers.map(sp => (<div key={sp.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-slate-50"><div className="flex items-center gap-3"><Avatar name={sp.name} src={sp.photoUrl} size={40}/><div><div className="font-semibold text-slate-900">{sp.name}</div><div className="text-xs text-slate-600">{sp.chapter}</div></div></div><div className="flex gap-2"><button onClick={() => setEditing(JSON.parse(JSON.stringify(sp)))} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">Edit</button><button onClick={() => handleDeleteSpeaker(sp.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-100 text-red-700 hover:bg-red-200 transition-colors">Delete</button></div></div>))}
                     </div>
                 </div>
               </>
@@ -346,9 +407,7 @@ export default function App() {
 
       <footer className="mt-16 border-t bg-white">
         <div className="max-w-6xl mx-auto px-4 py-8 text-center text-sm text-slate-500">
-            © 2024 Entrepreneurs’ Organization - APAC Region | 
-            <a href="#" className="hover:underline mx-2">Terms of Use</a> | 
-            <a href="#" className="hover:underline mx-2">Privacy Policy</a>
+            © 2025 Entrepreneurs’ Organization - APAC by Project Five Durians.
             {!admin && flags.adminGate && (
               <> | <button onClick={() => setLoginOpen(true)} className="hover:underline mx-2">Admin Login</button></>
             )}
@@ -356,7 +415,7 @@ export default function App() {
       </footer>
       
 {/* All Modals */}
-      <Modal open={!!openId} onClose={()=>{ setOpenId(null); setShowContact(false); }}>
+      <Modal open={!!openId} onClose={()=>{ setOpenId(null); }}>
         {current ? (
           <div>
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -376,22 +435,44 @@ export default function App() {
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
-                <button onClick={() => setShowContact(true)} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm">Contact</button>
                 <a href={current.links?.linkedin || '#'} className="text-sm text-indigo-700 hover:underline">LinkedIn</a>
               </div>
             </div>
 
-            {showContact && (
-              <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
-                <div><strong>Email:</strong> <a href={`mailto:${current.contact.email}`} className="text-indigo-600">{current.contact.email}</a></div>
-                <div><strong>Phone:</strong> {current.contact.phone}</div>
-              </div>
-            )}
+            <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
+              <div><strong>Email:</strong> <a href={`mailto:${current.contact.email}`} className="text-indigo-600">{current.contact.email}</a></div>
+              <div><strong>Phone:</strong> {current.contact.phone}</div>
+            </div>
             
             <div className="mt-5 grid md:grid-cols-3 gap-6">
               <div className="md:col-span-2 space-y-5">
                 <section><h4 className="font-semibold">About</h4><p className="mt-1 text-sm text-slate-700 leading-relaxed">{current.bio || '—'}</p></section>
                 <section><h4 className="font-semibold">Topics & Formats</h4><div className="mt-2 flex flex-wrap gap-2">{(current.topics||[]).map((t:string)=> <Badge key={t}>{t}</Badge>)}</div><div className="mt-2 text-sm text-slate-600">Formats: {(current.formats||[]).join(' \u00b7 ')}</div><div className="mt-1 text-sm text-slate-600">Languages: {(current.languages||[]).join(', ')}</div></section>
+                <section>
+                  <h4 className="font-semibold">Reviews</h4>
+                  <div className="mt-2 space-y-3">
+                    {current.reviews.map((review, i) => (
+                      <div key={i} className="bg-slate-50 p-3 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-sm">{review.by}</span>
+                          <span className="text-xs text-slate-500">{new Date(review.date).toLocaleDateString()}</span>
+                        </div>
+                        <StarRow value={review.rating} size={14} />
+                        <p className="text-sm mt-1">{review.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <section>
+                  <h4 className="font-semibold">Rate this Speaker</h4>
+                  <form onSubmit={e => submitReview(e, current.id)} className="mt-2 space-y-2">
+                    <input type="text" name="by" placeholder="Your Name" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <input type="date" name="date" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <input type="number" name="rating" min="1" max="5" placeholder="Rating (1-5)" required className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <textarea name="comment" placeholder="Comment" required rows={3} className="w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                    <button type="submit" className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm">Submit Review</button>
+                  </form>
+                </section>
               </div>
               <aside className="space-y-3">
                 <div className="rounded-xl border border-slate-200 p-3"><div className="text-xs font-semibold text-slate-600">Verification</div><div className="mt-1 text-sm text-slate-600">Last verified: {current.lastVerified ? new Date(current.lastVerified).toLocaleDateString() : '—'}</div></div>
@@ -429,14 +510,65 @@ export default function App() {
         {editing && (
             <div>
                 <h2 className="text-2xl font-bold mb-4">Edit Speaker: {editing.name}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div><label className="block text-xs font-semibold text-slate-600">Type</label><select value={editing.type} onChange={e=>setEditing({...editing, type: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
-                <div><label className="block text-xs font-semibold text-slate-600">Fee</label><select value={editing.fee} onChange={e=>setEditing({...editing, fee: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
-                <div><label className="block text-xs font-semibold text-slate-600">Full name</label><input value={editing.name} onChange={e=>setEditing({...editing, name: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div><label className="block text-xs font-semibold text-slate-600">Email</label><input type="email" value={editing.contact.email} onChange={e=>setEditing({...editing, contact: {...editing.contact, email: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600">Chapter / Company (optional)</label><input value={editing.chapter} onChange={e=>setEditing({...editing, chapter: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input value={editing.topics.join(', ')} onChange={e=>setEditing({...editing, topics: e.target.value.split(',').map(t=>t.trim())})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
-                <div className="md:col-span-2"><label className="block text-xs font-semibold text-slate-600">Bio</label><textarea value={editing.bio} onChange={e=>setEditing({...editing, bio: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" rows={3} /></div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div><label className="block text-xs font-semibold text-slate-600">Full name</label><input value={editing.name} onChange={e=>setEditing({...editing, name: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Chapter</label><input value={editing.chapter} onChange={e=>setEditing({...editing, chapter: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">City</label><input value={editing.city} onChange={e=>setEditing({...editing, city: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Country</label><input value={editing.country} onChange={e=>setEditing({...editing, country: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Type</label><select value={editing.type} onChange={e=>setEditing({...editing, type: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(SPEAKER_TYPE).map(t=> <option key={t} value={t}>{t}</option>)}</select></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Fee</label><select value={editing.fee} onChange={e=>setEditing({...editing, fee: e.target.value as any})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm">{Object.values(FEE).map(f=> <option key={f} value={f}>{f}</option>)}</select></div>
+                  </div>
+                  <div><label className="block text-xs font-semibold text-slate-600">Bio</label><textarea value={editing.bio} onChange={e=>setEditing({...editing, bio: e.target.value})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" rows={4} /></div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div><label className="block text-xs font-semibold text-slate-600">Topics (comma-separated)</label><input value={editing.topics.join(', ')} onChange={e=>setEditing({...editing, topics: e.target.value.split(',').map(t=>t.trim())})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Formats (comma-separated)</label><input value={editing.formats.join(', ')} onChange={e=>setEditing({...editing, formats: e.target.value.split(',').map(t=>t.trim())})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Languages (comma-separated)</label><input value={editing.languages.join(', ')} onChange={e=>setEditing({...editing, languages: e.target.value.split(',').map(t=>t.trim())})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div><label className="block text-xs font-semibold text-slate-600">Email</label><input type="email" value={editing.contact.email} onChange={e=>setEditing({...editing, contact: {...editing.contact, email: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Phone</label><input value={editing.contact.phone} onChange={e=>setEditing({...editing, contact: {...editing.contact, phone: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div><label className="block text-xs font-semibold text-slate-600">LinkedIn URL</label><input value={editing.links.linkedin} onChange={e=>setEditing({...editing, links: {...editing.links, linkedin: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Website URL</label><input value={editing.links.website} onChange={e=>setEditing({...editing, links: {...editing.links, website: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                    <div><label className="block text-xs font-semibold text-slate-600">Sample Video URL</label><input value={editing.links.video} onChange={e=>setEditing({...editing, links: {...editing.links, video: e.target.value}})} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm" /></div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600">Photo</label>
+                    <div className="mt-1 flex items-center gap-4">
+                      <img src={editing.photoUrl} alt="Preview" className="w-20 h-20 rounded-lg object-cover" />
+                      <div className="flex-1">
+                        <input type="file" accept="image/*" onChange={handlePhotoUpload} className="text-sm" />
+                        <input value={editing.photoUrl} onChange={e=>setEditing({...editing, photoUrl: e.target.value})} placeholder="Or paste image URL" className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 mt-4 mb-2">Insights</h4>
+                    {editing.insights.map((insight, index) => (
+                      <div key={index} className="flex items-center gap-2 mb-2">
+                        <input value={insight.title} onChange={e => handleArrayChange(index, 'title', e.target.value, 'insights')} placeholder="Title" className="flex-1 rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                        <input value={insight.link} onChange={e => handleArrayChange(index, 'link', e.target.value, 'insights')} placeholder="Link" className="flex-1 rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                        <button onClick={() => removeArrayItem(index, 'insights')} className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200">-</button>
+                      </div>
+                    ))}
+                    <button onClick={() => addArrayItem('insights', { title: '', date: new Date().toISOString().slice(0,10), link: '#', summary: '' })} className="text-sm text-indigo-600">+ Add Insight</button>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800 mt-4 mb-2">Event History</h4>
+                    {editing.eventHistory.map((event, index) => (
+                      <div key={index} className="flex items-center gap-2 mb-2">
+                        <input value={event.chapter} onChange={e => handleArrayChange(index, 'chapter', e.target.value, 'eventHistory')} placeholder="Chapter" className="flex-1 rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                        <input type="date" value={event.date.slice(0,10)} onChange={e => handleArrayChange(index, 'date', e.target.value, 'eventHistory')} className="flex-1 rounded-lg border border-slate-200 px-3 py-2 shadow-sm text-sm" />
+                        <button onClick={() => removeArrayItem(index, 'eventHistory')} className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200">-</button>
+                      </div>
+                    ))}
+                    <button onClick={() => addArrayItem('eventHistory', { chapter: '', date: new Date().toISOString().slice(0,10) })} className="text-sm text-indigo-600">+ Add Event</button>
+                  </div>
+
                 </div>
                 <div className="mt-6 flex justify-end gap-3">
                     <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border text-sm">Cancel</button>
