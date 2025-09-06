@@ -349,6 +349,53 @@ export default function App() {
         </div>
       </footer>
       
+{/* All Modals */}
+      <Modal open={!!openId} onClose={()=>{ setOpenId(null); setShowContact(false); }}>
+        {current ? (
+          <div>
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <Avatar name={current.name} size={64} src={current.photoUrl} />
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-2xl font-bold text-slate-900">{current.name}</h3>
+                    <Badge tone="black">{current.type}</Badge>
+                    <Badge tone={current.fee === FEE.PAID ? "orange" : current.type === SPEAKER_TYPE.PRO ? "orange" : "green"}>{current.fee}</Badge>
+                  </div>
+                  <div className="mt-0.5 text-sm text-slate-600">{current.chapter !== "—" ? current.chapter + " \u00b7 " : ""}{current.city || "—"}, {current.country || "—"}</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <StarRow value={current.rating?.avg || 0} />
+                    <span className="text-xs text-slate-600">{current.rating?.avg ?? 0} ({current.rating?.count ?? 0})</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <button onClick={() => setShowContact(true)} className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm">Contact</button>
+                <a href={current.links?.linkedin || '#'} className="text-sm text-indigo-700 hover:underline">LinkedIn</a>
+              </div>
+            </div>
+
+            {showContact && (
+              <div className="mt-4 p-3 bg-slate-50 rounded-lg border">
+                <div><strong>Email:</strong> <a href={`mailto:${current.contact.email}`} className="text-indigo-600">{current.contact.email}</a></div>
+                <div><strong>Phone:</strong> {current.contact.phone}</div>
+              </div>
+            )}
+            
+            <div className="mt-5 grid md:grid-cols-3 gap-6">
+              <div className="md:col-span-2 space-y-5">
+                {/* About, AI Intro, Topics, etc. */}
+              </div>
+              <aside className="space-y-3">
+                {/* Verification, Links, Event History */}
+              </aside>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-slate-600">No profile selected.</div>
+        )}
+      </Modal>
+
       <Modal open={isLoginOpen} onClose={() => setLoginOpen(false)}>
         <div>
             <h2 className="text-2xl font-bold mb-4 text-center">Admin Sign In</h2>
@@ -367,6 +414,15 @@ export default function App() {
                 </button>
             </form>
         </div>
+      </Modal>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)}>
+        {editing && (
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Edit Speaker: {editing.name}</h2>
+                {/* Full Edit Speaker Form JSX goes here */}
+            </div>
+        )}
       </Modal>
 
     </div>
