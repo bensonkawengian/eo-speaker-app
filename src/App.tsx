@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { SEED_DATA } from './database';
 import { SPEAKER_TYPE, FEE, Speaker, Nomination } from './types';
 
 /**
@@ -127,7 +126,7 @@ const CHAPTER_OPTIONS = [
 // =========================
 export default function App() {
   const [tab, setTab] = useState<"speakers"|"nominate"|"admin">("speakers");
-  const [speakers, setSpeakers] = useState<Speaker[]>(()=>[...SEED_DATA]);
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"All"|"Member"|"Pro">("All");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -145,6 +144,27 @@ export default function App() {
   const [matchingSpeakers, setMatchingSpeakers] = useState<Speaker[]>([]);
   const [eventIdeas, setEventIdeas] = useState<string>("");
   const [profileVersion, setProfileVersion] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/speakers')
+      .then(res => res.json())
+      .then(data => setSpeakers(data))
+      .catch(error => console.error('Failed to fetch speakers', error));
+  }, []);
+
+  async function updateSpeakers(updatedSpeakers: Speaker[]) {
+    setSpeakers(updatedSpeakers);
+    try {
+      await fetch('/api/speakers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedSpeakers),
+      });
+    } catch (error) {
+      console.error('Failed to update speakers', error);
+      // Optionally, revert the state change or notify the user
+    }
+  }
   
   const filtered = useMemo(()=>{
     const q = query.trim().toLowerCase();
@@ -282,20 +302,23 @@ Best regards,
       has_eo_special_rate: false,
       eo_rate_note: n.rateNotes,
     };
-    setSpeakers(prev => [...prev, newSpeaker]);
+    const updatedSpeakers = [...speakers, newSpeaker];
+    updateSpeakers(updatedSpeakers);
     setPending(prev => prev.filter(p => p.id !== n.id));
     alert(`${n.name} has been approved and added to the directory.`);
   }
   function handleUpdateSpeaker() {
     if (!editing) return;
-    setSpeakers(speakers.map(s => s.id === editing.id ? editing : s));
+    const updatedSpeakers = speakers.map(s => (s.id === editing.id ? editing : s));
+    updateSpeakers(updatedSpeakers);
     setEditing(null);
     setProfileVersion(v => v + 1);
   }
 
   function handleDeleteSpeaker(speakerId: string) {
     if (window.confirm("Are you sure you want to delete this speaker?")) {
-      setSpeakers(speakers.filter(s => s.id !== speakerId));
+      const updatedSpeakers = speakers.filter(s => s.id !== speakerId);
+      updateSpeakers(updatedSpeakers);
     }
   }
 
@@ -346,7 +369,7 @@ Best regards,
 
     const newReview = { by, date: new Date().toISOString(), rating, comment, rater_chapter_id, event_name, event_date, format };
 
-    setSpeakers(speakers.map(sp => {
+    const updatedSpeakers = speakers.map(sp => {
       if (sp.id === speakerId) {
         const newReviews = [newReview, ...sp.reviews];
         const newRatingCount = newReviews.length;
@@ -354,7 +377,8 @@ Best regards,
         return { ...sp, reviews: newReviews, rating: { avg: newRatingAvg, count: newRatingCount } };
       }
       return sp;
-    }));
+    });
+    updateSpeakers(updatedSpeakers);
     form.reset();
   }
 
@@ -390,7 +414,7 @@ Best regards,
             };
             return newSpeaker;
           });
-          setSpeakers([...speakers, ...newSpeakers]);
+          updateSpeakers([...speakers, ...newSpeakers]);
         }
       };
       reader.readAsText(e.target.files[0]);
@@ -503,7 +527,7 @@ Best regards,
                           <p className="text-xs text-white/80">{sp.chapter !== "—" ? sp.chapter : `${sp.city}, ${sp.country}`}</p>
                       </div>
                       <div className="absolute top-3 right-3">
-                           <Badge tone={sp.fee === FEE.PAID ? "orange" : sp.type === SPEAKER_TYPE.PRO ? "orange" : "green"}>{sp.fee}</Badge>
+                           <Badge tone={sp.fee === FEE.NO_FEE ? "green" : "orange"}>{sp.fee}</Badge>
                       </div>
                   </div>
                   <div className="p-5 flex flex-col flex-1">
@@ -673,7 +697,7 @@ Best regards,
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-2xl font-bold text-slate-900">{current.name}</h3>
                     <Badge tone="black">{current.type}</Badge>
-                    <Badge tone={current.fee === FEE.PAID ? "orange" : current.type === SPEAKER_TYPE.PRO ? "orange" : "green"}>{current.fee}</Badge>
+                    <Badge tone={current.fee === FEE.NO_FEE ? "green" : "orange"}>{current.fee}</Badge>
                   </div>
                   <div className="mt-0.5 text-sm text-slate-600">{current.chapter !== "—" ? current.chapter + " \u00b7 " : ""}{current.city || "—"}, {current.country || "—"}</div>
                   <div className="mt-1 flex items-center gap-2">
