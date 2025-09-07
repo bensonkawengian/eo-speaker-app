@@ -5,10 +5,17 @@ export const SPEAKER_TYPE = {
   PRO: "Professional (Non-EO)",
 } as const;
 
+export const FEE = {
+  NO_FEE: "No Fee (EO Giver)",
+  PAID: "Paid Speaker",
+  PRO_PAID: "Professional (Paid)",
+} as const;
+
 // We define a base type for a speaker here
 export type Speaker = {
   id: string;
   type: (typeof SPEAKER_TYPE)[keyof typeof SPEAKER_TYPE];
+  fee: (typeof FEE)[keyof typeof FEE];
   name: string;
   chapter: string;
   city: string;
@@ -35,6 +42,7 @@ export type Speaker = {
 export type Nomination = {
   id: string;
   type: (typeof SPEAKER_TYPE)[keyof typeof SPEAKER_TYPE];
+  fee: (typeof FEE)[keyof typeof FEE];
   name: string;
   email: string;
   chapter: string;
