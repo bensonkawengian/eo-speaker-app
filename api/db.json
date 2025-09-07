@@ -1,8 +1,8 @@
 [
   {
     "id": "sp-1",
-    "type": "MEMBER",
-    "fee": "No-fee",
+    "type": "EO Member Speaker",
+    "fee": "No Fee (EO Giver)",
     "name": "Aisha Tan",
     "chapter": "EO Singapore",
     "city": "Singapore",
@@ -30,8 +30,8 @@
   },
   {
     "id": "sp-11",
-    "type": "MEMBER",
-    "fee": "Paid",
+    "type": "EO Member Speaker",
+    "fee": "Paid Speaker",
     "name": "Ben Carter",
     "chapter": "EO Melbourne",
     "city": "Melbourne",
@@ -56,8 +56,8 @@
   },
   {
     "id": "sp-2",
-    "type": "PRO",
-    "fee": "PRO Paid",
+    "type": "Professional (Non-EO)",
+    "fee": "Professional (Paid)",
     "name": "Dr. Kenji Tanaka",
     "chapter": "—",
     "city": "Tokyo",
@@ -81,8 +81,8 @@
   },
   {
     "id": "sp-3",
-    "type": "MEMBER",
-    "fee": "No-fee",
+    "type": "EO Member Speaker",
+    "fee": "No Fee (EO Giver)",
     "name": "Isabella Rossi",
     "chapter": "EO Sydney",
     "city": "Sydney",
@@ -102,8 +102,8 @@
   },
   {
     "id": "sp-4",
-    "type": "PRO",
-    "fee": "PRO Paid",
+    "type": "Professional (Non-EO)",
+    "fee": "Professional (Paid)",
     "name": "Raj Patel",
     "chapter": "—",
     "city": "Mumbai",
@@ -126,8 +126,8 @@
   },
   {
     "id": "sp-5",
-    "type": "MEMBER",
-    "fee": "No-fee",
+    "type": "EO Member Speaker",
+    "fee": "No Fee (EO Giver)",
     "name": "Chloe Chen",
     "chapter": "EO Hong Kong",
     "city": "Hong Kong",
@@ -147,8 +147,8 @@
   },
   {
     "id": "sp-6",
-    "type": "PRO",
-    "fee": "PRO Paid",
+    "type": "Professional (Non-EO)",
+    "fee": "Professional (Paid)",
     "name": "Dr. Emily Carter",
     "chapter": "—",
     "city": "Auckland",
@@ -169,26 +169,5 @@
     "fee_max": 600000,
     "currency": "NZD",
     "has_eo_special_rate": true
-  },
-  {
-    "id": "sp-7",
-    "type": "MEMBER",
-    "fee": "No-fee",
-    "name": "Jules",
-    "chapter": "EO Virtual",
-    "city": "Virtual",
-    "country": "Internet",
-    "topics": ["AI", "Software Engineering", "Problem Solving"],
-    "formats": ["Talk", "Workshop", "Virtual"],
-    "languages": ["English"],
-    "rating": { "avg": 5.0, "count": 1 },
-    "lastVerified": "2025-09-06",
-    "bio": "A skilled software engineer that can help you with your coding tasks.",
-    "links": { "linkedin": "", "website": "", "video": "" },
-    "contact": { "email": "", "phone": "" },
-    "reviews": [],
-    "insights": [],
-    "eventHistory": [],
-    "photoUrl": ""
   }
 ]

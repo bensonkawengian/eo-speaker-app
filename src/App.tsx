@@ -527,7 +527,7 @@ Best regards,
                           <p className="text-xs text-white/80">{sp.chapter !== "—" ? sp.chapter : `${sp.city}, ${sp.country}`}</p>
                       </div>
                       <div className="absolute top-3 right-3">
-                           <Badge tone={sp.fee === FEE.PAID ? "orange" : sp.type === SPEAKER_TYPE.PRO ? "orange" : "green"}>{sp.fee}</Badge>
+                           <Badge tone={sp.fee === FEE.NO_FEE ? "green" : "orange"}>{sp.fee}</Badge>
                       </div>
                   </div>
                   <div className="p-5 flex flex-col flex-1">
@@ -697,7 +697,7 @@ Best regards,
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-2xl font-bold text-slate-900">{current.name}</h3>
                     <Badge tone="black">{current.type}</Badge>
-                    <Badge tone={current.fee === FEE.PAID ? "orange" : current.type === SPEAKER_TYPE.PRO ? "orange" : "green"}>{current.fee}</Badge>
+                    <Badge tone={current.fee === FEE.NO_FEE ? "green" : "orange"}>{current.fee}</Badge>
                   </div>
                   <div className="mt-0.5 text-sm text-slate-600">{current.chapter !== "—" ? current.chapter + " \u00b7 " : ""}{current.city || "—"}, {current.country || "—"}</div>
                   <div className="mt-1 flex items-center gap-2">
